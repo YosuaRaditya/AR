@@ -2,12 +2,12 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>WebAR Studio - Hit-Test Tap to Place & Custom GLB</title>
   
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Import Map untuk Three.js (Standar WebXR & Google Web 3D) -->
+  <!-- Import Map Three.js (Standar WebXR & Google Web 3D) -->
   <script type="importmap">
   {
     "imports": {
@@ -18,32 +18,41 @@
   </script>
 </head>
 <body>
-  <div class="app-container">
+  <div class="app-container" id="app-container">
 
-    <!-- Insecure HTTP Warning Banner (Otomatis muncul jika dibuka via http:// selain localhost) -->
-    <div id="security-warning" class="security-banner hidden">
+    <!-- Video Element untuk Kamera HP (WebRTC Universal untuk iPhone & Android) -->
+    <video
+      id="camera-video-feed"
+      class="camera-video hidden"
+      playsinline
+      webkit-playsinline
+      autoplay
+      muted
+    ></video>
+
+    <!-- In-App Browser Warning (Jika dibuka via WhatsApp/Instagram/Sosmed) -->
+    <div id="webview-warning" class="security-banner webview-banner hidden">
       <div class="banner-content">
-        <span class="warning-icon">⚠️</span>
+        <span class="warning-icon">ℹ️</span>
         <div class="banner-text">
-          <strong>Kamera AR Diblokir Browser (Bukan HTTPS)!</strong>
-          <p>Browser HP mewajibkan HTTPS atau Localhost untuk mengakses kamera & WebXR.</p>
+          <strong>Perhatian: Buka di Chrome / Safari Asli</strong>
+          <p>Browser bawaan chat membatasi kamera. Ketuk titik tiga (⋮) di pojok atas & pilih "Buka di Browser / Chrome".</p>
         </div>
-        <button id="btn-fix-https" class="btn btn-warning-action">Cara Buka di HP</button>
       </div>
     </div>
     
     <!-- Header / Navbar -->
-    <header class="app-header">
+    <header class="app-header" id="app-header">
       <div class="brand">
         <span class="brand-icon">🌐</span>
         <h1>WebAR <span>Studio</span></h1>
       </div>
       
       <div class="header-actions">
-        <!-- Status Indikator WebXR -->
-        <div id="xr-status-pill" class="status-pill status-checking" title="Status Dukungan Kamera AR">
+        <!-- Status Indikator Kamera -->
+        <div id="camera-status-pill" class="status-pill status-ok" title="Status Kamera">
           <span class="status-dot"></span>
-          <span id="xr-status-text">Cek AR...</span>
+          <span id="camera-status-text">Kamera Siap</span>
         </div>
 
         <label for="glb-file-input" class="btn btn-primary" title="Unggah file model 3D .GLB atau .GLTF">
@@ -56,14 +65,15 @@
         </label>
         <input type="file" id="glb-file-input" accept=".glb,.gltf" hidden />
 
-        <button id="btn-phone-guide" class="btn btn-secondary" title="Panduan & QR Code Buka di HP">
-          📱 Buka di HP
+        <button id="btn-phone-guide" class="btn btn-secondary" title="Info Kamera">
+          ℹ️ Info
         </button>
       </div>
     </header>
 
-    <!-- 3D Canvas Viewport (WebGL) & Drag-and-Drop Zone -->
+    <!-- 3D Canvas Viewport -->
     <main class="viewer-wrapper" id="drop-zone">
+      <!-- WebGL Three.js Canvas -->
       <canvas id="webgl-canvas"></canvas>
 
       <!-- Drag & Drop Overlay Indicator -->
@@ -81,7 +91,7 @@
         <span class="model-size" id="model-size"></span>
       </div>
 
-      <!-- Loading Spinner / Progress -->
+      <!-- Loading Spinner -->
       <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
         <span id="loading-text">Memuat model 3D...</span>
@@ -91,10 +101,10 @@
       <div id="toast" class="toast"></div>
 
       <!-- Tombol Masuk Mode Kamera AR -->
-      <div class="ar-cta-container">
+      <div class="ar-cta-container" id="cta-container">
         <button id="btn-start-ar" class="ar-button">
           <span class="ar-icon">📷</span>
-          <span class="ar-btn-text">Mulai Kamera AR (Hit-Test)</span>
+          <span class="ar-btn-text">Buka Kamera AR</span>
         </button>
       </div>
 
@@ -117,7 +127,7 @@
           </div>
 
           <div class="control-row slider-row">
-            <label for="scale-slider">Ukuran AR:</label>
+            <label for="scale-slider">Ukuran Objek:</label>
             <input type="range" id="scale-slider" min="0.2" max="3" step="0.1" value="1" />
             <span id="scale-value" class="scale-label">1.0x</span>
           </div>
@@ -125,87 +135,63 @@
       </div>
     </main>
 
-    <!-- WebXR DOM Overlay: Antarmuka Terapung Saat Kamera AR Aktif -->
+    <!-- AR Interface Overlay (Tampil saat Kamera Aktif) -->
     <div id="ar-overlay" class="ar-overlay hidden">
       <!-- Petunjuk Status AR (HUD Atas) -->
       <div class="ar-hud-header">
         <div class="ar-instruction-card" id="ar-instruction-card">
           <span id="ar-instruction-icon">🔍</span>
-          <span id="ar-instruction-text">Arahkan kamera ke lantai & gerakkan perlahan...</span>
+          <span id="ar-instruction-text">Arahkan kamera & ketuk layar untuk meletakkan model</span>
         </div>
       </div>
 
-      <!-- Target Cincin (Reticle) Visual Guide Banner -->
-      <div class="ar-tap-prompt hidden" id="ar-tap-prompt">
-        <div class="pulse-ring-indicator"></div>
-        <span>Permukaan Ditemukan! Ketuk layar untuk menempatkan 3D</span>
+      <!-- Reticle Ring Guide di Tengah Layar (Mode Kamera Langsung) -->
+      <div class="screen-reticle" id="screen-reticle">
+        <div class="reticle-circle">
+          <div class="reticle-dot"></div>
+        </div>
       </div>
 
       <!-- Kontrol Aksi Bawah di Mode AR -->
       <div class="ar-hud-footer">
-        <button id="btn-reposition-ar" class="btn btn-ar-action hidden" title="Pindahkan model ke posisi baru">
-          📍 Reposisi / Pindah Posisi
+        <button id="btn-reposition-ar" class="btn btn-ar-action" title="Pindahkan model ke titik baru">
+          📍 Reposisi / Pindah Titik
         </button>
         <button id="btn-exit-ar" class="btn btn-ar-exit" title="Tutup Kamera AR">
-          ✕ Keluar AR
+          ✕ Tutup Kamera
         </button>
       </div>
     </div>
 
-    <!-- Modal Panduan Buka di Smartphone & HTTPS Setup -->
-    <div class="modal-backdrop" id="phone-modal">
+    <!-- Modal Informasi & Pemecahan Masalah Izin Kamera -->
+    <div class="modal-backdrop" id="info-modal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>Solusi Membuka Kamera AR di Smartphone</h3>
+          <h3>Pengaturan Kamera AR</h3>
           <button class="btn-close" id="btn-close-modal">&times;</button>
         </div>
         <div class="modal-body">
           <div class="modal-explanation">
-            <p><strong>Kenapa kamera tidak otomatis terbuka di HP?</strong></p>
-            <p>Sistem keamanan browser (Google Chrome / Safari) <u>memblokir total</u> sensor kamera dan WebXR jika dibuka lewat alamat HTTP lokal (seperti <code>http://192.168.x.x:8000</code>). Halaman harus berjalan di <strong>HTTPS</strong> atau <strong>localhost</strong>.</p>
+            <p><strong>Status Kamera Perangkat Anda:</strong></p>
+            <p id="device-info-text">Memeriksa izin dan perangkat...</p>
           </div>
 
           <div class="solution-options">
             <div class="solution-card">
-              <div class="solution-badge">Solusi 1 (Paling Mudah)</div>
-              <h4>Tunneling HTTPS Gratis (Cloudflare / Localtunnel)</h4>
-              <p>Jalankan perintah ini di terminal komputer Anda:</p>
-              <div class="code-box">
-                <code>npx localtunnel --port 8000</code>
-              </div>
-              <p class="hint">Atau jika Anda memiliki cloudflared: <code>npx cloudflared tunnel --url http://localhost:8000</code></p>
-              <p>Buka link <code>https://...</code> yang muncul di Google Chrome HP Anda. Kamera AR akan langsung aktif 100%!</p>
+              <div class="solution-badge">Solusi Jika Kamera Tidak Muncul</div>
+              <h4>1. Izinkan Akses Kamera di Browser</h4>
+              <p>Jika sebelumnya Anda tidak sengaja menekan "Blokir" atau "Deny":</p>
+              <ul class="hint-steps">
+                <li>Ketuk ikon <strong>Gembok (🔒)</strong> atau <strong>Setelan</strong> di sebelah kiri alamat URL browser (di bagian atas layar HP Anda).</li>
+                <li>Pilih <strong>Izin / Permissions</strong> -> Ubah <strong>Kamera</strong> menjadi <strong>Izinkan (Allow)</strong>.</li>
+                <li>Muat ulang (Refresh) halaman web.</li>
+              </ul>
             </div>
 
             <div class="solution-card">
-              <div class="solution-badge">Solusi 2 (Kabel USB)</div>
-              <h4>Android USB Port Forwarding (Tanpa Internet)</h4>
-              <p>Colok HP Android ke laptop dengan kabel USB (aktifkan USB Debugging), lalu ketik di terminal:</p>
-              <div class="code-box">
-                <code>adb reverse tcp:8000 tcp:8000</code>
-              </div>
-              <p>Buka <code>http://localhost:8000</code> di Chrome HP. Karena menggunakan <em>localhost</em>, Chrome mengizinkan kamera AR secara instan!</p>
-            </div>
-
-            <div class="solution-card">
-              <div class="solution-badge">Solusi 3</div>
-              <h4>Chrome Flags (Tanpa Kabel & Tanpa Internet)</h4>
-              <p>Di Google Chrome HP Anda:</p>
-              <ol class="hint-steps">
-                <li>Buka: <code>chrome://flags</code></li>
-                <li>Cari: <strong>Insecure origins treated as secure</strong></li>
-                <li>Masukkan alamat URL komputer Anda (misal: <code>http://192.168.1.5:8000</code>)</li>
-                <li>Ubah ke <strong>Enabled</strong> dan klik <strong>Relaunch</strong>.</li>
-              </ol>
-            </div>
-          </div>
-
-          <!-- QR Code Generator untuk Link Saat Ini -->
-          <div class="qr-section">
-            <h4>Scan QR Code untuk Membuka Halaman Ini:</h4>
-            <div class="qr-container">
-              <img id="qr-code-img" alt="QR Code Link" src="" />
-              <div class="current-url-display" id="current-url-text"></div>
+              <div class="solution-badge">Tips Penting</div>
+              <h4>2. Gunakan Browser Asli</h4>
+              <p>Pastikan Anda membuka tautan di aplikasi <strong>Google Chrome</strong> (Android) atau <strong>Safari</strong> (iPhone), bukan di dalam browser WhatsApp / Instagram.</p>
             </div>
           </div>
         </div>
@@ -218,7 +204,6 @@
 
   </div>
 
-  <!-- Script Aplikasi WebXR Studio -->
   <script type="module" src="app.js"></script>
 </body>
 </html>

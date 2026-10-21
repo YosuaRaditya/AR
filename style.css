@@ -1,6 +1,6 @@
 /* ==========================================================================
    WebAR Studio - Modern Responsive Stylesheet
-   Framework: Three.js + WebXR Device API Hit-Test
+   Universal Camera AR & WebXR Engine
    ========================================================================== */
 
 :root {
@@ -37,6 +37,10 @@ body {
   user-select: none;
 }
 
+body.camera-active {
+  background-color: transparent !important;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
@@ -47,15 +51,33 @@ body {
 }
 
 /* ==========================================================================
-   Security Warning Banner (HTTP non-secure context)
+   Video Element Kamera HP (WebRTC Universal)
+   ========================================================================== */
+.camera-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  object-fit: cover;
+  z-index: 1;
+  background-color: #000;
+}
+
+.camera-video.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   In-App Webview Warning Banner
    ========================================================================== */
 .security-banner {
-  background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
+  background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 100%);
   color: #fff;
   padding: 8px 16px;
   z-index: 99;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: transform 0.3s ease;
 }
 
 .security-banner.hidden {
@@ -67,7 +89,6 @@ body {
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -76,26 +97,13 @@ body {
 }
 
 .banner-text strong {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   display: block;
 }
 
 .banner-text p {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   opacity: 0.95;
-}
-
-.btn-warning-action {
-  background: #ffffff;
-  color: #92400e;
-  border: none;
-  font-weight: 700;
-  padding: 6px 14px;
-  white-space: nowrap;
-}
-
-.btn-warning-action:hover {
-  background: #fef3c7;
 }
 
 /* ==========================================================================
@@ -162,12 +170,6 @@ body {
   height: 7px;
   border-radius: 50%;
 }
-
-.status-checking {
-  background: rgba(148, 163, 184, 0.15);
-  color: #cbd5e1;
-}
-.status-checking .status-dot { background: #94a3b8; }
 
 .status-ok {
   background: rgba(16, 185, 129, 0.15);
@@ -247,7 +249,7 @@ body {
 }
 
 /* ==========================================================================
-   Viewer Container & WebGL Canvas
+   Canvas & Viewport
    ========================================================================== */
 .viewer-wrapper {
   position: relative;
@@ -258,15 +260,24 @@ body {
   overflow: hidden;
 }
 
+.viewer-wrapper.camera-mode {
+  background: transparent !important;
+}
+
 #webgl-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: block;
   outline: none;
+  z-index: 2;
+  background: transparent;
 }
 
 /* ==========================================================================
-   AR Launch Button (CTA)
+   AR CTA Launch Button
    ========================================================================== */
 .ar-cta-container {
   position: absolute;
@@ -277,6 +288,10 @@ body {
   justify-content: center;
   pointer-events: none;
   z-index: 15;
+}
+
+.ar-cta-container.hidden {
+  display: none !important;
 }
 
 .ar-button {
@@ -304,14 +319,6 @@ body {
 
 .ar-button:active {
   transform: scale(0.97);
-}
-
-.ar-button.disabled {
-  background: #334155;
-  box-shadow: none;
-  animation: none;
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .ar-icon {
@@ -344,6 +351,10 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 10;
   max-width: calc(100vw - 32px);
+}
+
+.model-info-badge.hidden {
+  display: none !important;
 }
 
 .model-info-badge .dot {
@@ -412,6 +423,10 @@ body {
   z-index: 10;
 }
 
+.floating-controls.hidden {
+  display: none !important;
+}
+
 .control-card {
   background: var(--bg-surface);
   backdrop-filter: blur(16px);
@@ -462,14 +477,14 @@ body {
 .loading-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(10, 14, 23, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(10, 14, 23, 0.75);
+  backdrop-filter: blur(6px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  z-index: 45;
+  z-index: 60;
   font-size: 0.9rem;
 }
 
@@ -478,10 +493,10 @@ body {
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--accent-color);
+  border-top-color: var(--accent-ar);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -491,13 +506,13 @@ body {
 }
 
 /* ==========================================================================
-   WebXR DOM Overlay (Tampilan saat Kamera AR Aktif)
+   AR Overlay (Tampil saat Kamera Aktif)
    ========================================================================== */
 .ar-overlay {
   position: fixed;
   inset: 0;
-  pointer-events: none; /* Klik tembus ke canvas WebXR controller */
-  z-index: 90;
+  pointer-events: none;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -505,14 +520,14 @@ body {
 }
 
 .ar-overlay.hidden {
-  display: none;
+  display: none !important;
 }
 
-/* HUD Atas AR */
 .ar-hud-header {
   display: flex;
   justify-content: center;
   width: 100%;
+  margin-top: 50px;
 }
 
 .ar-instruction-card {
@@ -522,7 +537,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 25px;
   padding: 10px 20px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   color: #ffffff;
   display: inline-flex;
@@ -533,24 +548,44 @@ body {
   text-align: center;
 }
 
-/* Prompt Banner saat Reticle Terdeteksi */
-.ar-tap-prompt {
-  align-self: center;
-  background: rgba(16, 185, 129, 0.9);
-  color: #ffffff;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
-  animation: bounce 1s infinite;
+/* Cincin Target (Reticle) di Tengah Layar */
+.screen-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
-.ar-tap-prompt.hidden {
-  display: none;
+.screen-reticle.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reticle-circle {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed rgba(16, 185, 129, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: reticle-pulse 2s infinite linear;
+}
+
+.reticle-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #10b981;
+}
+
+@keyframes reticle-pulse {
+  0% { transform: scale(1) rotate(0deg); border-color: rgba(16, 185, 129, 0.7); }
+  50% { transform: scale(1.1) rotate(180deg); border-color: rgba(52, 211, 153, 1); }
+  100% { transform: scale(1) rotate(360deg); border-color: rgba(16, 185, 129, 0.7); }
 }
 
 /* Footer Kontrol AR */
@@ -559,12 +594,13 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  pointer-events: auto; /* Tombol bisa diklik */
+  pointer-events: auto;
   gap: 10px;
+  margin-bottom: 20px;
 }
 
 .btn-ar-action {
-  background: rgba(28, 38, 58, 0.85);
+  background: rgba(28, 38, 58, 0.9);
   color: #60a5fa;
   border: 1px solid rgba(96, 165, 250, 0.4);
   padding: 10px 18px;
@@ -575,11 +611,11 @@ body {
 }
 
 .btn-ar-action.hidden {
-  display: none;
+  display: none !important;
 }
 
 .btn-ar-exit {
-  background: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.9);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 10px 18px;
@@ -606,7 +642,7 @@ body {
   transform: translateY(-8px);
   transition: opacity 0.3s ease, transform 0.3s ease;
   pointer-events: none;
-  z-index: 60;
+  z-index: 70;
   max-width: 320px;
 }
 
@@ -661,7 +697,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 540px;
+  max-width: 480px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
@@ -703,15 +739,15 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .modal-explanation {
-  background: rgba(239, 68, 68, 0.12);
-  border-left: 4px solid #ef4444;
+  background: rgba(59, 130, 246, 0.12);
+  border-left: 4px solid #3b82f6;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  color: #fecaca;
+  color: #bfdbfe;
   font-size: 0.83rem;
   line-height: 1.45;
 }
@@ -719,7 +755,7 @@ body {
 .solution-options {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .solution-card {
@@ -747,65 +783,12 @@ body {
   margin-bottom: 6px;
 }
 
-.code-box {
-  background: #090d16;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin: 6px 0;
-  font-family: monospace;
-  font-size: 0.85rem;
-  color: #38bdf8;
-  word-break: break-all;
-}
-
-.hint {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
 .hint-steps {
-  padding-left: 20px;
+  padding-left: 18px;
   font-size: 0.82rem;
   color: #cbd5e1;
   line-height: 1.5;
   margin-top: 4px;
-}
-
-.qr-section {
-  background: rgba(15, 23, 42, 0.6);
-  padding: 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  text-align: center;
-}
-
-.qr-section h4 {
-  font-size: 0.88rem;
-  margin-bottom: 10px;
-}
-
-.qr-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.qr-container img {
-  width: 160px;
-  height: 160px;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 6px;
-}
-
-.current-url-display {
-  font-family: monospace;
-  font-size: 0.78rem;
-  color: #94a3b8;
-  word-break: break-all;
 }
 
 .modal-footer {
@@ -833,8 +816,8 @@ body {
   }
 
   .ar-button {
-    padding: 11px 22px;
-    font-size: 0.9rem;
+    padding: 12px 24px;
+    font-size: 0.92rem;
   }
   
   .floating-controls {
