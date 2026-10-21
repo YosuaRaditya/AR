@@ -1,23 +1,22 @@
 /* ==========================================================================
    WebAR Studio - Modern Responsive Stylesheet
-   Framework: Pure CSS3 + Google <model-viewer>
+   Framework: Three.js + WebXR Device API Hit-Test
    ========================================================================== */
 
 :root {
-  --bg-primary: #0f141c;
-  --bg-surface: rgba(26, 34, 48, 0.75);
-  --bg-surface-elevated: rgba(36, 48, 68, 0.85);
+  --bg-primary: #0a0e17;
+  --bg-surface: rgba(18, 25, 38, 0.75);
+  --bg-surface-elevated: rgba(28, 38, 58, 0.85);
   --border-color: rgba(255, 255, 255, 0.12);
   --accent-color: #3b82f6;
   --accent-hover: #2563eb;
   --accent-ar: #10b981;
   --accent-ar-hover: #059669;
-  --text-main: #f1f5f9;
+  --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --radius-lg: 16px;
   --radius-md: 10px;
   --radius-sm: 6px;
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
 }
 
@@ -48,6 +47,58 @@ body {
 }
 
 /* ==========================================================================
+   Security Warning Banner (HTTP non-secure context)
+   ========================================================================== */
+.security-banner {
+  background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 99;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.security-banner.hidden {
+  display: none;
+}
+
+.banner-content {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+}
+
+.banner-text strong {
+  font-size: 0.9rem;
+  display: block;
+}
+
+.banner-text p {
+  font-size: 0.78rem;
+  opacity: 0.95;
+}
+
+.btn-warning-action {
+  background: #ffffff;
+  color: #92400e;
+  border: none;
+  font-weight: 700;
+  padding: 6px 14px;
+  white-space: nowrap;
+}
+
+.btn-warning-action:hover {
+  background: #fef3c7;
+}
+
+/* ==========================================================================
    Header Navbar
    ========================================================================== */
 .app-header {
@@ -56,11 +107,11 @@ body {
   left: 0;
   right: 0;
   height: 60px;
-  padding: 0 20px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(15, 20, 28, 0.85) 0%, rgba(15, 20, 28, 0) 100%);
+  background: linear-gradient(180deg, rgba(10, 14, 23, 0.9) 0%, rgba(10, 14, 23, 0) 100%);
   z-index: 20;
   pointer-events: auto;
 }
@@ -68,15 +119,15 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .brand-icon {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
 }
 
 .brand h1 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -89,8 +140,48 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
+
+/* Status Pill */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.status-checking {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+.status-checking .status-dot { background: #94a3b8; }
+
+.status-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.status-ok .status-dot { background: #10b981; }
+
+.status-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.status-warn .status-dot { background: #f59e0b; }
 
 /* ==========================================================================
    Buttons & Inputs
@@ -99,14 +190,14 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -115,7 +206,7 @@ body {
   background-color: var(--accent-color);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
 }
 
 .btn-primary:hover {
@@ -130,7 +221,7 @@ body {
 }
 
 .btn-secondary:hover {
-  background-color: rgba(50, 65, 90, 0.9);
+  background-color: rgba(45, 60, 90, 0.95);
 }
 
 .btn-secondary.active {
@@ -139,22 +230,13 @@ body {
   color: #60a5fa;
 }
 
-.btn-icon {
-  padding: 8px 10px;
-  background-color: var(--bg-surface);
-  color: var(--text-main);
-  border-color: var(--border-color);
-  border-radius: 50%;
-  font-size: 1rem;
-}
-
 .select-dropdown {
   background-color: var(--bg-surface-elevated);
   color: var(--text-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 8px 12px;
-  font-size: 0.85rem;
+  padding: 7px 10px;
+  font-size: 0.82rem;
   outline: none;
   cursor: pointer;
 }
@@ -165,38 +247,45 @@ body {
 }
 
 /* ==========================================================================
-   Viewer Container & Google Model-Viewer
+   Viewer Container & WebGL Canvas
    ========================================================================== */
 .viewer-wrapper {
   position: relative;
   flex: 1;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0f141c 70%);
-  display: flex;
+  background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0a0e17 80%);
   overflow: hidden;
 }
 
-model-viewer {
+#webgl-canvas {
   width: 100%;
   height: 100%;
-  --poster-color: transparent;
+  display: block;
   outline: none;
 }
 
 /* ==========================================================================
-   AR Launch Button (Model Viewer Slot)
+   AR Launch Button (CTA)
    ========================================================================== */
-.ar-button {
+.ar-cta-container {
   position: absolute;
-  bottom: 120px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 125px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.ar-button {
+  pointer-events: auto;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 30px;
-  padding: 12px 28px;
+  padding: 13px 28px;
   font-size: 1rem;
   font-weight: 700;
   display: inline-flex;
@@ -204,18 +293,25 @@ model-viewer {
   gap: 10px;
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.45);
   cursor: pointer;
-  z-index: 15;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   animation: pulse-glow 2.5s infinite;
 }
 
 .ar-button:hover {
-  transform: translateX(-50%) scale(1.04);
-  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.6);
+  transform: scale(1.04);
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.65);
 }
 
 .ar-button:active {
-  transform: translateX(-50%) scale(0.97);
+  transform: scale(0.97);
+}
+
+.ar-button.disabled {
+  background: #334155;
+  box-shadow: none;
+  animation: none;
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .ar-icon {
@@ -223,49 +319,8 @@ model-viewer {
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.7);
-  }
-}
-
-/* AR Prompt Notice */
-#ar-prompt {
-  position: absolute;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  color: #e2e8f0;
-  pointer-events: none;
-  display: none;
-}
-
-/* ==========================================================================
-   Progress Bar
-   ========================================================================== */
-.progress-bar-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background-color: rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  z-index: 30;
-}
-
-.progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #3b82f6, #10b981);
-  transition: width 0.15s ease-out;
+  0%, 100% { box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 8px 32px rgba(16, 185, 129, 0.75); }
 }
 
 /* ==========================================================================
@@ -273,8 +328,8 @@ model-viewer {
    ========================================================================== */
 .model-info-badge {
   position: absolute;
-  top: 75px;
-  left: 20px;
+  top: 72px;
+  left: 16px;
   background: var(--bg-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -288,7 +343,7 @@ model-viewer {
   color: var(--text-main);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 10;
-  max-width: calc(100vw - 40px);
+  max-width: calc(100vw - 32px);
 }
 
 .model-info-badge .dot {
@@ -309,7 +364,7 @@ model-viewer {
 .drop-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.88);
+  background: rgba(10, 14, 23, 0.88);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -345,15 +400,15 @@ model-viewer {
 }
 
 /* ==========================================================================
-   Floating Controls Panel (Bottom)
+   Floating Controls Panel (Preview Mode)
    ========================================================================== */
 .floating-controls {
   position: absolute;
-  bottom: 20px;
+  bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 40px);
-  max-width: 580px;
+  width: calc(100% - 32px);
+  max-width: 520px;
   z-index: 10;
 }
 
@@ -363,53 +418,176 @@ model-viewer {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 12px 16px;
+  padding: 10px 14px;
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .control-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.placement-row {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 8px;
-}
-
-.radio-group {
-  display: flex;
-  gap: 14px;
-}
-
-.radio-group label {
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-main);
-}
-
 .slider-row {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  display: grid;
-  grid-template-columns: auto 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 6px;
 }
 
 .slider-row input[type="range"] {
+  flex: 1;
   accent-color: var(--accent-color);
   cursor: pointer;
   height: 4px;
+}
+
+.scale-label {
+  min-width: 38px;
+  text-align: right;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Loading Overlay
+   ========================================================================== */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 23, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 45;
+  font-size: 0.9rem;
+}
+
+.loading-overlay.hidden {
+  display: none;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   WebXR DOM Overlay (Tampilan saat Kamera AR Aktif)
+   ========================================================================== */
+.ar-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* Klik tembus ke canvas WebXR controller */
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.ar-overlay.hidden {
+  display: none;
+}
+
+/* HUD Atas AR */
+.ar-hud-header {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ar-instruction-card {
+  background: rgba(10, 14, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-width: 90%;
+  text-align: center;
+}
+
+/* Prompt Banner saat Reticle Terdeteksi */
+.ar-tap-prompt {
+  align-self: center;
+  background: rgba(16, 185, 129, 0.9);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6);
+  animation: bounce 1s infinite;
+}
+
+.ar-tap-prompt.hidden {
+  display: none;
+}
+
+/* Footer Kontrol AR */
+.ar-hud-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  pointer-events: auto; /* Tombol bisa diklik */
+  gap: 10px;
+}
+
+.btn-ar-action {
+  background: rgba(28, 38, 58, 0.85);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+
+.btn-ar-action.hidden {
+  display: none;
+}
+
+.btn-ar-exit {
+  background: rgba(239, 68, 68, 0.85);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-left: auto;
+  backdrop-filter: blur(8px);
 }
 
 /* ==========================================================================
@@ -418,7 +596,7 @@ model-viewer {
 .toast {
   position: absolute;
   top: 75px;
-  right: 20px;
+  right: 16px;
   padding: 10px 18px;
   border-radius: var(--radius-md);
   font-size: 0.85rem;
@@ -461,12 +639,12 @@ model-viewer {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 16px;
   z-index: 100;
   opacity: 0;
   pointer-events: none;
@@ -479,15 +657,16 @@ model-viewer {
 }
 
 .modal-card {
-  background: #182234;
+  background: #141c2b;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 480px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  max-width: 540px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  max-height: 90vh;
 }
 
 .modal-header {
@@ -500,7 +679,7 @@ model-viewer {
 
 .modal-header h3 {
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .btn-close {
@@ -518,37 +697,123 @@ model-viewer {
 }
 
 .modal-body {
-  padding: 20px;
-  font-size: 0.9rem;
+  padding: 18px 20px;
+  font-size: 0.88rem;
   color: #cbd5e1;
-  max-height: 60vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.guide-list {
-  padding-left: 20px;
+.modal-explanation {
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 4px solid #ef4444;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  color: #fecaca;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.solution-options {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.guide-list li strong {
-  color: #ffffff;
-  display: block;
-  margin-bottom: 2px;
+.solution-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
 }
 
-.guide-list li p {
-  color: var(--text-muted);
+.solution-badge {
+  display: inline-block;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.solution-card h4 {
+  font-size: 0.95rem;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.code-box {
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 6px 0;
+  font-family: monospace;
   font-size: 0.85rem;
+  color: #38bdf8;
+  word-break: break-all;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.hint-steps {
+  padding-left: 20px;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.qr-section {
+  background: rgba(15, 23, 42, 0.6);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.qr-section h4 {
+  font-size: 0.88rem;
+  margin-bottom: 10px;
+}
+
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-container img {
+  width: 160px;
+  height: 160px;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px;
+}
+
+.current-url-display {
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  word-break: break-all;
 }
 
 .modal-footer {
-  padding: 14px 20px;
+  padding: 12px 20px;
   display: flex;
   justify-content: flex-end;
   border-top: 1px solid var(--border-color);
-  background: rgba(15, 20, 28, 0.4);
+  background: rgba(10, 14, 23, 0.5);
 }
 
 /* ==========================================================================
@@ -556,29 +821,24 @@ model-viewer {
    ========================================================================== */
 @media (max-width: 600px) {
   .app-header {
-    padding: 0 14px;
+    padding: 0 12px;
   }
   
   .brand h1 {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .ar-cta-container {
+    bottom: 140px;
+  }
+
+  .ar-button {
+    padding: 11px 22px;
+    font-size: 0.9rem;
   }
   
   .floating-controls {
     bottom: 12px;
     width: calc(100% - 24px);
-  }
-  
-  .control-card {
-    padding: 10px 12px;
-  }
-
-  .ar-button {
-    bottom: 150px;
-    padding: 10px 22px;
-    font-size: 0.92rem;
-  }
-  
-  .slider-row {
-    grid-template-columns: 1fr;
   }
 }
