@@ -1,6 +1,6 @@
 /**
- * WebAR Studio - Universal Camera & Hit-Test AR Controller
- * Mendukung 100% perangkat smartphone (Android Chrome, iPhone Safari, Tablet, PC)
+ * WebAR Studio - Engine Kamera AR & 3D Viewer
+ * Murni HTML5 + CSS3 + Vanilla JavaScript + Three.js
  */
 
 import * as THREE from 'three';
@@ -11,89 +11,73 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // State & Variabel Global
 // =============================================================================
 let scene, camera, renderer, controls;
-let previewGroup, arGroup, reticle3D;
+let previewGroup, arGroup;
 let modelTemplate = null;
 let currentScale = 1.0;
 
-// AR State
-let arMode = null; // 'webxr' | 'camera' | null
-let xrSession = null;
-let hitTestSource = null;
-let hitTestSourceRequested = false;
+// State Kamera AR
+let isCameraActive = false;
 let isModelPlaced = false;
-let isRepositioning = false;
-let isWebXRSupported = false;
-let videoStream = null;
+let mediaStream = null;
 
 // DOM Elements
 const canvas = document.getElementById('webgl-canvas');
-const videoFeed = document.getElementById('camera-video-feed');
-const viewerWrapper = document.getElementById('drop-zone');
+const cameraFeed = document.getElementById('camera-feed');
 const fileInput = document.getElementById('glb-file-input');
 const dropZone = document.getElementById('drop-zone');
 const dropOverlay = document.getElementById('drop-overlay');
-const modelNameEl = document.getElementById('model-name');
-const modelSizeEl = document.getElementById('model-size');
-const modelInfoBadge = document.getElementById('model-info-badge');
-const loadingOverlay = document.getElementById('loading-overlay');
+const modelName = document.getElementById('model-name');
+const modelBadge = document.getElementById('model-badge');
+const loading = document.getElementById('loading');
 const loadingText = document.getElementById('loading-text');
 const toast = document.getElementById('toast');
-const ctaContainer = document.getElementById('cta-container');
-const btnStartAr = document.getElementById('btn-start-ar');
-const btnToggleRotate = document.getElementById('btn-toggle-rotate');
-const btnResetView = document.getElementById('btn-reset-view');
-const presetSelector = document.getElementById('preset-selector');
-const scaleSlider = document.getElementById('scale-slider');
-const scaleValue = document.getElementById('scale-value');
-const previewControls = document.getElementById('preview-controls');
-const webviewWarning = document.getElementById('webview-warning');
-const cameraStatusPill = document.getElementById('camera-status-pill');
-const cameraStatusText = document.getElementById('camera-status-text');
 
-// AR DOM Overlay Elements
-const arOverlay = document.getElementById('ar-overlay');
+// Kontrol & Tombol
+const btnOpenCamera = document.getElementById('btn-open-camera');
+const btnCloseCamera = document.getElementById('btn-close-camera');
+const btnReposition = document.getElementById('btn-reposition');
+const btnRotate = document.getElementById('btn-rotate');
+const btnReset = document.getElementById('btn-reset');
+const presetSelect = document.getElementById('preset-select');
+const scaleRange = document.getElementById('scale-range');
+const scaleLabel = document.getElementById('scale-label');
+
+// AR UI
+const arReticle = document.getElementById('ar-reticle');
+const arInstructionBar = document.getElementById('ar-instruction-bar');
 const arInstructionText = document.getElementById('ar-instruction-text');
 const arInstructionIcon = document.getElementById('ar-instruction-icon');
-const screenReticle = document.getElementById('screen-reticle');
-const btnRepositionAr = document.getElementById('btn-reposition-ar');
-const btnExitAr = document.getElementById('btn-exit-ar');
-
-// Info Modal Elements
-const btnPhoneGuide = document.getElementById('btn-phone-guide');
-const infoModal = document.getElementById('info-modal');
-const btnCloseModal = document.getElementById('btn-close-modal');
-const btnModalOk = document.getElementById('btn-modal-ok');
-const deviceInfoText = document.getElementById('device-info-text');
+const arControlsBar = document.getElementById('ar-controls-bar');
+const previewPanel = document.getElementById('preview-panel');
 
 let autoRotate = true;
-let toastTimeout = null;
+let toastTimer = null;
 
 // =============================================================================
-// 1. Inisialisasi Three.js Engine
+// 1. Inisialisasi Three.js 3D Engine
 // =============================================================================
 function initEngine() {
-  // Scene
+  // 1. Scene
   scene = new THREE.Scene();
 
-  // Camera
+  // 2. Camera
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 30);
   camera.position.set(0, 1.2, 1.8);
 
-  // Renderer dengan Canvas Transparan
+  // 3. Renderer Transparan
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
-    alpha: true, // Memungkinkan video feed terlihat di belakang canvas
+    alpha: true, // Memungkinkan video kamera di belakang terlihat
     powerPreference: 'high-performance'
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x000000, 0); // 100% transparan
-  renderer.xr.enabled = true;
+  renderer.setClearColor(0x000000, 0); // Background canvas bening
 
-  // Orbit Controls (Khusus mode 3D Preview)
+  // 4. Orbit Controls (Untuk mode preview 3D)
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
@@ -101,7 +85,7 @@ function initEngine() {
   controls.maxPolarAngle = Math.PI / 2 + 0.1;
   controls.update();
 
-  // Pencahayaan
+  // 5. Pencahayaan
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
   scene.add(ambientLight);
 
@@ -112,288 +96,207 @@ function initEngine() {
   dirLight.shadow.mapSize.height = 1024;
   scene.add(dirLight);
 
-  // Group Preview 3D
+  // 6. Group Preview 3D (Grid & Bayangan)
   previewGroup = new THREE.Group();
   scene.add(previewGroup);
 
-  // Ground Grid & Shadow Receiver
-  const gridHelper = new THREE.GridHelper(10, 20, 0x3b82f6, 0x1e293b);
-  previewGroup.add(gridHelper);
+  const grid = new THREE.GridHelper(10, 20, 0x3b82f6, 0x1e293b);
+  previewGroup.add(grid);
 
-  const shadowPlaneGeo = new THREE.PlaneGeometry(10, 10);
-  const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.3 });
-  const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-  shadowPlane.rotation.x = -Math.PI / 2;
-  shadowPlane.receiveShadow = true;
-  previewGroup.add(shadowPlane);
+  const shadowGeo = new THREE.PlaneGeometry(10, 10);
+  const shadowMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+  const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+  shadowMesh.rotation.x = -Math.PI / 2;
+  shadowMesh.receiveShadow = true;
+  previewGroup.add(shadowMesh);
 
-  // Group AR (Objek saat ditempatkan di kamera)
+  // 7. Group AR (Tempat objek saat kamera aktif)
   arGroup = new THREE.Group();
   scene.add(arGroup);
 
-  // Reticle 3D (Untuk WebXR Hit-Test)
-  build3DReticle();
+  // Touch & Drag Interaction
+  setupTouchControls();
 
-  // WebXR Controller Event (Tap di mode WebXR)
-  const controller = renderer.xr.getController(0);
-  controller.addEventListener('select', onWebXRTap);
-  scene.add(controller);
-
-  // Event Listener Touch / Click untuk Mode Kamera Universal
-  setupTouchInteractions();
-
+  // Resize handler
   window.addEventListener('resize', onWindowResize);
 
-  // Mulai Loop Render
-  renderer.setAnimationLoop(render);
+  // Render Loop
+  renderer.setAnimationLoop(renderLoop);
 
-  // Periksa dukungan WebXR & Kamera
-  checkCameraCapabilities();
-
-  // Muat Model Bawaan
-  loadGlbFromUrl(presetSelector.value, 'Astronaut');
+  // Muat model awal
+  loadGlbFromUrl(presetSelect.value, 'Astronaut');
 }
 
 // =============================================================================
-// 2. Pembuatan Reticle 3D (WebXR)
+// 2. Buka & Tutup Kamera HP (WebRTC Universal)
 // =============================================================================
-function build3DReticle() {
-  const group = new THREE.Group();
-
-  const ringGeo = new THREE.RingGeometry(0.12, 0.14, 32).rotateX(-Math.PI / 2);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
-  group.add(new THREE.Mesh(ringGeo, ringMat));
-
-  const dotGeo = new THREE.CircleGeometry(0.02, 16).rotateX(-Math.PI / 2);
-  const dotMat = new THREE.MeshBasicMaterial({ color: 0x34d399, side: THREE.DoubleSide });
-  group.add(new THREE.Mesh(dotGeo, dotMat));
-
-  reticle3D = group;
-  reticle3D.matrixAutoUpdate = false;
-  reticle3D.visible = false;
-  scene.add(reticle3D);
-}
-
-// =============================================================================
-// 3. Pengecekan Kapabilitas Kamera & Perangkat
-// =============================================================================
-async function checkCameraCapabilities() {
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-  const isAndroid = /Android/.test(ua);
-  const isInApp = /FBAN|FBAV|Instagram|WhatsApp|Line|Telegram|MicroMessenger/i.test(ua);
-
-  if (isInApp) {
-    webviewWarning.classList.remove('hidden');
-  }
-
-  // Cek WebXR (Android Chrome dengan ARCore)
-  if ('xr' in navigator) {
-    try {
-      isWebXRSupported = await navigator.xr.isSessionSupported('immersive-ar');
-    } catch (e) {
-      isWebXRSupported = false;
-    }
-  }
-
-  cameraStatusPill.className = 'status-pill status-ok';
-  cameraStatusText.textContent = isWebXRSupported ? 'WebXR AR Siap' : 'Kamera Siap';
-
-  const os = isIOS ? 'Apple iOS (iPhone/iPad)' : isAndroid ? 'Android' : 'Komputer/Laptop';
-  const mode = isWebXRSupported ? 'WebXR ARCore (Hit-Test Lantai)' : 'Kamera Langsung Universal (WebRTC)';
-  deviceInfoText.innerHTML = `
-    Sistem Operasi: <strong>${os}</strong><br/>
-    Mode Kamera: <strong>${mode}</strong><br/>
-    Akses: <strong>${window.isSecureContext ? 'HTTPS (Aman ✅)' : 'HTTP ⚠️'}</strong>
-  `;
-}
-
-// =============================================================================
-// 4. Buka Kamera AR (Anti-Gagal: WebXR -> Fallback Kamera Langsung)
-// =============================================================================
-async function startArExperience() {
-  if (isWebXRSupported) {
-    try {
-      await launchWebXR();
-      return;
-    } catch (err) {
-      console.warn('WebXR gagal, langsung beralih ke Kamera Langsung:', err);
-    }
-  }
-
-  // Fallback Universal: Nyalakan kamera HP langsung
-  await launchCameraDirect();
-}
-
-// Mode 1: WebXR Hit-Test
-async function launchWebXR() {
-  showLoading('Membuka kamera WebXR...');
-  const session = await navigator.xr.requestSession('immersive-ar', {
-    requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay'],
-    domOverlay: { root: arOverlay }
-  });
-
-  xrSession = session;
-  arMode = 'webxr';
-  renderer.xr.setReferenceSpaceType('local');
-  await renderer.xr.setSession(session);
-
-  hideLoading();
-  activateArUI();
-
-  session.addEventListener('end', closeArExperience);
-}
-
-// Mode 2: Universal Camera Video Stream (100% Work di iPhone & Android)
-async function launchCameraDirect() {
-  showLoading('Mengaktifkan kamera HP...');
-
-  let stream = null;
-
-  // Coba kamera belakang secara bertahap
-  const options = [
-    { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-    { video: { facingMode: 'environment' }, audio: false },
-    { video: true, audio: false }
-  ];
-
-  for (const opt of options) {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(opt);
-      if (stream) break;
-    } catch (e) {
-      console.warn('Opsi kamera gagal, mencoba opsi berikutnya...', e);
-    }
-  }
-
-  if (!stream) {
-    hideLoading();
-    showToast('Kamera tidak dapat diakses. Pastikan izin kamera sudah diaktifkan.', 'error', 5000);
-    infoModal.classList.add('active');
-    return;
-  }
-
-  videoStream = stream;
-  videoFeed.srcObject = stream;
-  videoFeed.setAttribute('playsinline', '');
-  videoFeed.setAttribute('webkit-playsinline', '');
-  videoFeed.muted = true;
+async function startCamera() {
+  showLoading('Membuka kamera HP...');
 
   try {
-    await videoFeed.play();
+    // 1. Minta akses kamera belakang HP
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+    } catch (e1) {
+      console.warn('Gagal buka kamera belakang ideal, coba kamera standar...', e1);
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+    }
+
+    mediaStream = stream;
+    cameraFeed.srcObject = stream;
+    cameraFeed.classList.add('active');
+
+    // Pastikan video mulai berjalan
+    await cameraFeed.play();
+
+    isCameraActive = true;
+    isModelPlaced = false;
+
+    hideLoading();
+
+    // 2. Alihkan Tampilan UI ke Mode Kamera AR
+    previewGroup.visible = false; // Sembunyikan grid lantai abu-abu
+    previewPanel.classList.add('hidden');
+    btnOpenCamera.classList.add('hidden');
+    modelBadge.classList.add('hidden');
+
+    arReticle.classList.remove('hidden'); // Tampilkan cincin bidik
+    arInstructionBar.classList.remove('hidden');
+    arControlsBar.classList.remove('hidden');
+    btnReposition.classList.add('hidden');
+
+    arInstructionIcon.textContent = '📍';
+    arInstructionText.textContent = 'Arahkan kamera & ketuk layar untuk meletakkan model 3D';
+
+    // Posisikan kamera 3D tetap menghadap lurus
+    controls.enabled = false;
+    camera.position.set(0, 0, 1.2);
+    camera.lookAt(0, 0, 0);
+
+    // Bersihkan objek AR sebelumnya jika ada
+    while (arGroup.children.length > 0) {
+      arGroup.remove(arGroup.children[0]);
+    }
+
+    showToast('Kamera aktif! Arahkan & ketuk layar untuk menaruh objek.', 'success');
   } catch (err) {
-    console.warn('video.play() warning:', err);
+    hideLoading();
+    console.error('Kamera gagal dibuka:', err);
+    showToast('Gagal mengakses kamera: Pastikan Anda memilih "Izinkan" (Allow) pada browser.', 'error', 5000);
   }
-
-  arMode = 'camera';
-  hideLoading();
-
-  // Tampilkan video di background dan buat canvas transparan
-  document.body.classList.add('camera-active');
-  viewerWrapper.classList.add('camera-mode');
-  videoFeed.classList.remove('hidden');
-
-  // Nonaktifkan OrbitControls dan posisikan kamera 3D
-  controls.enabled = false;
-  camera.position.set(0, 0, 1.2);
-  camera.lookAt(0, 0, 0);
-
-  activateArUI();
-  screenReticle.classList.remove('hidden');
-  showToast('Kamera aktif! Ketuk layar untuk menempatkan objek', 'info', 3000);
 }
 
-// Aktifkan Tampilan Layar AR
-function activateArUI() {
-  previewGroup.visible = false;
-  arOverlay.classList.remove('hidden');
-  previewControls.classList.add('hidden');
-  ctaContainer.classList.add('hidden');
-  modelInfoBadge.classList.add('hidden');
+function stopCamera() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+  }
 
+  cameraFeed.classList.remove('active');
+  cameraFeed.srcObject = null;
+
+  isCameraActive = false;
   isModelPlaced = false;
-  isRepositioning = false;
 
-  arInstructionIcon.textContent = '📍';
-  arInstructionText.textContent = 'Arahkan kamera & ketuk layar untuk meletakkan model 3D';
-  btnRepositionAr.classList.add('hidden');
+  // Kembalikan UI ke Mode Preview Biasa
+  previewGroup.visible = true;
+  previewPanel.classList.remove('hidden');
+  btnOpenCamera.classList.remove('hidden');
+  modelBadge.classList.remove('hidden');
 
-  // Bersihkan objek AR lama
+  arReticle.classList.add('hidden');
+  arInstructionBar.classList.add('hidden');
+  arControlsBar.classList.add('hidden');
+
   while (arGroup.children.length > 0) {
     arGroup.remove(arGroup.children[0]);
   }
-}
 
-// Tutup Mode AR
-function closeArExperience() {
-  if (xrSession) {
-    xrSession.end();
-    xrSession = null;
-  }
-
-  if (videoStream) {
-    videoStream.getTracks().forEach((track) => track.stop());
-    videoStream = null;
-  }
-  videoFeed.classList.add('hidden');
-  videoFeed.srcObject = null;
-
-  document.body.classList.remove('camera-active');
-  viewerWrapper.classList.remove('camera-mode');
-
-  arMode = null;
-  hitTestSource = null;
-  hitTestSourceRequested = false;
-
+  // Aktifkan kembali kontrol orbit
   controls.enabled = true;
   camera.position.set(0, 1.2, 1.8);
   controls.target.set(0, 0.4, 0);
   controls.update();
 
-  previewGroup.visible = true;
-  arOverlay.classList.add('hidden');
-  screenReticle.classList.add('hidden');
-  previewControls.classList.remove('hidden');
-  ctaContainer.classList.remove('hidden');
-  modelInfoBadge.classList.remove('hidden');
-
-  while (arGroup.children.length > 0) {
-    arGroup.remove(arGroup.children[0]);
-  }
-
-  isModelPlaced = false;
-  isRepositioning = false;
+  showToast('Kamera ditutup', 'info');
 }
 
 // =============================================================================
-// 5. Interaksi Tap Layar (Menempatkan & Menggeser Model 3D)
+// 3. Menempatkan Model (Tap to Place) & Geser Putar
 // =============================================================================
-function setupTouchInteractions() {
+function placeModel() {
+  if (!modelTemplate || !isCameraActive) return;
+
+  if (!arGroup.children.length) {
+    const clone = modelTemplate.clone();
+    arGroup.add(clone);
+  }
+
+  const model = arGroup.children[0];
+  // Posisikan tepat di tengah kamera agak ke bawah di lantai
+  model.position.set(0, -0.28, -1.05);
+  model.rotation.set(0, 0, 0);
+  model.visible = true;
+
+  isModelPlaced = true;
+
+  // Sembunyikan cincin target, tampilkan tombol reposisi
+  arReticle.classList.add('hidden');
+  btnReposition.classList.remove('hidden');
+
+  arInstructionIcon.textContent = '✅';
+  arInstructionText.textContent = 'Model berhasil diletakkan! Sentuh & geser untuk memutar.';
+  showToast('Model 3D berhasil diletakkan!', 'success');
+}
+
+function repositionModel() {
+  if (!isCameraActive) return;
+
+  isModelPlaced = false;
+
+  if (arGroup.children.length > 0) {
+    arGroup.children[0].visible = false;
+  }
+
+  // Munculkan kembali cincin target
+  arReticle.classList.remove('hidden');
+  btnReposition.classList.add('hidden');
+
+  arInstructionIcon.textContent = '📍';
+  arInstructionText.textContent = 'Arahkan kamera & ketuk layar di lokasi baru.';
+  showToast('Arahkan kamera & ketuk layar untuk meletakkan ulang', 'info');
+}
+
+function setupTouchControls() {
   let touchStartX = 0;
   let isDragging = false;
 
-  // Tap di mode Kamera Langsung (Universal)
-  canvas.addEventListener('click', (e) => {
-    if (arMode !== 'camera') return;
-
-    if (!isModelPlaced || isRepositioning) {
-      placeModelInCamera();
+  // Klik / Tap layar untuk meletakkan objek
+  canvas.addEventListener('click', () => {
+    if (isCameraActive && !isModelPlaced) {
+      placeModel();
     }
   });
 
-  // Gestur sentuh untuk memutar model saat sudah diletakkan
+  // Gestur geser horizontal untuk memutar objek saat sudah diletakkan
   canvas.addEventListener('touchstart', (e) => {
-    if (arMode === 'camera' && e.touches.length === 1) {
+    if (isCameraActive && isModelPlaced && e.touches.length === 1) {
       isDragging = true;
       touchStartX = e.touches[0].clientX;
     }
   }, { passive: true });
 
   canvas.addEventListener('touchmove', (e) => {
-    if (arMode === 'camera' && isDragging && isModelPlaced && arGroup.children.length > 0) {
+    if (isCameraActive && isDragging && isModelPlaced && arGroup.children.length > 0) {
       const deltaX = e.touches[0].clientX - touchStartX;
-      arGroup.children[0].rotation.y += deltaX * 0.012;
+      arGroup.children[0].rotation.y += deltaX * 0.015;
       touchStartX = e.touches[0].clientX;
     }
   }, { passive: true });
@@ -403,104 +306,16 @@ function setupTouchInteractions() {
   });
 }
 
-// Tempatkan Model di Mode Kamera Langsung
-function placeModelInCamera() {
-  if (!modelTemplate) return;
-
-  if (!arGroup.children.length) {
-    const clone = modelTemplate.clone();
-    arGroup.add(clone);
-  }
-
-  const model = arGroup.children[0];
-  // Posisikan tepat di depan kamera pengguna, sedikit di bawah pandangan
-  model.position.set(0, -0.28, -1.1);
-  model.rotation.set(0, 0, 0);
-  model.visible = true;
-
-  isModelPlaced = true;
-  isRepositioning = false;
-
-  screenReticle.classList.add('hidden');
-  btnRepositionAr.classList.remove('hidden');
-
-  arInstructionIcon.textContent = '✅';
-  arInstructionText.textContent = 'Model berhasil diletakkan! Sentuh & geser untuk memutar.';
-  showToast('Model 3D berhasil diletakkan!', 'success');
-}
-
-// Tap di Mode WebXR
-function onWebXRTap() {
-  if (arMode !== 'webxr' || !reticle3D.visible || !modelTemplate) return;
-
-  if (!isModelPlaced || isRepositioning) {
-    if (!arGroup.children.length) {
-      arGroup.add(modelTemplate.clone());
-    }
-
-    const model = arGroup.children[0];
-    model.position.setFromMatrixPosition(reticle3D.matrix);
-
-    const camPos = new THREE.Vector3();
-    camera.getWorldPosition(camPos);
-    model.lookAt(camPos.x, model.position.y, camPos.z);
-
-    model.visible = true;
-    isModelPlaced = true;
-    isRepositioning = false;
-
-    reticle3D.visible = false;
-    btnRepositionAr.classList.remove('hidden');
-
-    arInstructionIcon.textContent = '✅';
-    arInstructionText.textContent = 'Model diletakkan! Anda bisa mengelilinginya.';
-    showToast('Model diletakkan di lantai!', 'success');
-  }
-}
-
 // =============================================================================
-// 6. Loop Render Animasi & Hit-Test
+// 4. Render Loop Animasi
 // =============================================================================
-function render(timestamp, frame) {
-  if (arMode === 'webxr' && frame) {
-    const session = frame.session;
-    const refSpace = renderer.xr.getReferenceSpace();
-
-    if (!hitTestSourceRequested) {
-      session.requestReferenceSpace('viewer').then((viewerSpace) => {
-        session.requestHitTestSource({ space: viewerSpace }).then((src) => {
-          hitTestSource = src;
-        });
-      });
-      hitTestSourceRequested = true;
-    }
-
-    if (hitTestSource && (!isModelPlaced || isRepositioning)) {
-      const results = frame.getHitTestResults(hitTestSource);
-      if (results.length > 0) {
-        const pose = results[0].getPose(refSpace);
-        reticle3D.visible = true;
-        reticle3D.matrix.fromArray(pose.transform.matrix);
-        arInstructionIcon.textContent = '📍';
-        arInstructionText.textContent = 'Lantai terdeteksi! Ketuk layar untuk menempatkan.';
-      } else {
-        reticle3D.visible = false;
-        arInstructionIcon.textContent = '🔍';
-        arInstructionText.textContent = 'Arahkan kamera ke lantai / meja datar...';
-      }
-    } else {
-      reticle3D.visible = false;
-    }
-  } else if (arMode === 'camera') {
-    // Mode Kamera Langsung
-  } else {
-    // Mode 3D Preview Desktop
+function renderLoop() {
+  if (!isCameraActive) {
     if (autoRotate && previewGroup) {
       previewGroup.rotation.y += 0.005;
     }
     controls.update();
   }
-
   renderer.render(scene, camera);
 }
 
@@ -511,31 +326,31 @@ function onWindowResize() {
 }
 
 // =============================================================================
-// 7. Pemuatan & Manajemen File GLB
+// 5. Muat Model GLB (Custom Upload & Sampel)
 // =============================================================================
-function showLoading(text) {
-  loadingText.textContent = text;
-  loadingOverlay.classList.remove('hidden');
+function showLoading(msg) {
+  loadingText.textContent = msg;
+  loading.classList.remove('hidden');
 }
 
 function hideLoading() {
-  loadingOverlay.classList.add('hidden');
+  loading.classList.add('hidden');
 }
 
 function loadGlbFromUrl(url, label) {
-  showLoading(`Mengunduh ${label}...`);
+  showLoading(`Mengunduh model ${label}...`);
   const loader = new GLTFLoader();
   loader.load(
     url,
     (gltf) => {
-      applyLoadedModel(gltf.scene, `${label} (Sampel)`, null);
+      applyModel(gltf.scene, `${label} (Model Bawaan)`);
       hideLoading();
-      showToast(`Model "${label}" berhasil dimuat!`, 'success');
+      showToast(`Model "${label}" siap!`, 'success');
     },
     undefined,
-    (error) => {
+    (err) => {
       hideLoading();
-      console.error('Error load GLB:', error);
+      console.error(err);
       showToast('Gagal mengunduh model sampel.', 'error');
     }
   );
@@ -544,8 +359,8 @@ function loadGlbFromUrl(url, label) {
 function loadGlbFromFile(file) {
   if (!file) return;
 
-  const fileName = file.name.toLowerCase();
-  if (!fileName.endsWith('.glb') && !fileName.endsWith('.gltf')) {
+  const name = file.name.toLowerCase();
+  if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
     showToast('Harap pilih file dengan format .glb atau .gltf', 'error');
     return;
   }
@@ -554,31 +369,28 @@ function loadGlbFromFile(file) {
 
   const reader = new FileReader();
   reader.onload = (e) => {
-    const arrayBuffer = e.target.result;
+    const buffer = e.target.result;
     const loader = new GLTFLoader();
     loader.parse(
-      arrayBuffer,
+      buffer,
       '',
       (gltf) => {
-        applyLoadedModel(gltf.scene, file.name, file.size);
+        applyModel(gltf.scene, file.name);
         hideLoading();
-        showToast(`Model "${file.name}" siap di AR!`, 'success');
+        showToast(`Model kustom "${file.name}" siap!`, 'success');
       },
-      (error) => {
+      (err) => {
         hideLoading();
-        console.error('Gagal parsing GLB:', error);
-        showToast('Format GLB tidak valid / rusak.', 'error');
+        console.error(err);
+        showToast('Format GLB rusak / tidak valid.', 'error');
       }
     );
-  };
-  reader.onerror = () => {
-    hideLoading();
-    showToast('Gagal membaca file dari perangkat.', 'error');
   };
   reader.readAsArrayBuffer(file);
 }
 
-function applyLoadedModel(modelScene, name, sizeInBytes) {
+function applyModel(sceneObj, displayName) {
+  // Bersihkan model lama
   while (previewGroup.children.length > 2) {
     previewGroup.remove(previewGroup.children[previewGroup.children.length - 1]);
   }
@@ -586,83 +398,62 @@ function applyLoadedModel(modelScene, name, sizeInBytes) {
     arGroup.remove(arGroup.children[0]);
   }
 
-  modelScene.traverse((node) => {
-    if (node.isMesh) {
-      node.castShadow = true;
-      node.receiveShadow = true;
+  // Aktifkan bayangan
+  sceneObj.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
     }
   });
 
-  const box = new THREE.Box3().setFromObject(modelScene);
+  // Normalisasi ukuran & atur dasar model pas di Y=0 (lantai)
+  const box = new THREE.Box3().setFromObject(sceneObj);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z);
 
-  const targetDimension = 0.45;
-  const baseScale = targetDimension / (maxDim || 1);
+  const targetDim = 0.45;
+  const baseScale = targetDim / (maxDim || 1);
 
   const center = box.getCenter(new THREE.Vector3());
-  modelScene.position.x = -center.x;
-  modelScene.position.y = -box.min.y; // dasar model pas di lantai
-  modelScene.position.z = -center.z;
+  sceneObj.position.x = -center.x;
+  sceneObj.position.y = -box.min.y; // dasar model pas di lantai
+  sceneObj.position.z = -center.z;
 
-  const normalizedWrapper = new THREE.Group();
-  normalizedWrapper.add(modelScene);
-  normalizedWrapper.scale.setScalar(baseScale * currentScale);
+  const wrapper = new THREE.Group();
+  wrapper.add(sceneObj);
+  wrapper.scale.setScalar(baseScale * currentScale);
 
-  modelTemplate = normalizedWrapper;
+  modelTemplate = wrapper;
 
-  const previewClone = modelTemplate.clone();
-  previewGroup.add(previewClone);
+  // Masukkan clone ke preview biasa
+  previewGroup.add(modelTemplate.clone());
 
-  isModelPlaced = false;
-  isRepositioning = false;
-
-  modelNameEl.textContent = name;
-  modelSizeEl.textContent = sizeInBytes ? formatBytes(sizeInBytes) : '';
+  modelName.textContent = displayName;
 }
 
 // =============================================================================
-// 8. Event Listeners UI
+// 6. Event Listeners UI
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
   initEngine();
 
-  // Tombol Buka Kamera AR (Eksekusi Langsung)
-  btnStartAr.addEventListener('click', startArExperience);
+  // Buka Kamera HP Langsung
+  btnOpenCamera.addEventListener('click', startCamera);
 
-  // Tombol Tutup Kamera AR
-  btnExitAr.addEventListener('click', closeArExperience);
+  // Tutup Kamera
+  btnCloseCamera.addEventListener('click', stopCamera);
 
-  // Tombol Reposisi
-  btnRepositionAr.addEventListener('click', () => {
-    isRepositioning = true;
-    isModelPlaced = false;
-    btnRepositionAr.classList.add('hidden');
+  // Reposisi / Pindah Posisi
+  btnReposition.addEventListener('click', repositionModel);
 
-    if (arMode === 'camera') {
-      if (arGroup.children.length > 0) {
-        arGroup.children[0].visible = false;
-      }
-      screenReticle.classList.remove('hidden');
-      arInstructionIcon.textContent = '📍';
-      arInstructionText.textContent = 'Arahkan kamera & ketuk layar untuk menempatkan ulang.';
-    } else if (arMode === 'webxr') {
-      reticle3D.visible = true;
-      arInstructionIcon.textContent = '📍';
-      arInstructionText.textContent = 'Arahkan cincin ke titik baru, lalu ketuk layar.';
-    }
-
-    showToast('Arahkan kamera & ketuk layar untuk meletakkan ulang', 'info');
-  });
-
-  // Upload GLB
+  // Upload Custom GLB
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (file) loadGlbFromFile(file);
     fileInput.value = '';
   });
 
-  // Drag and Drop
+  // Drag and drop GLB
   ['dragenter', 'dragover'].forEach((evt) => {
     dropZone.addEventListener(evt, (e) => {
       e.preventDefault();
@@ -687,31 +478,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Preset Selector
-  presetSelector.addEventListener('change', (e) => {
+  presetSelect.addEventListener('change', (e) => {
     const url = e.target.value;
     const label = e.target.options[e.target.selectedIndex].text;
     loadGlbFromUrl(url, label);
   });
 
-  // Toggle Rotasi
-  btnToggleRotate.addEventListener('click', () => {
+  // Putar Otomatis Toggle (Preview)
+  btnRotate.addEventListener('click', () => {
     autoRotate = !autoRotate;
-    btnToggleRotate.classList.toggle('active', autoRotate);
+    btnRotate.classList.toggle('active', autoRotate);
   });
 
-  // Reset Kamera
-  btnResetView.addEventListener('click', () => {
+  // Reset Kamera View
+  btnReset.addEventListener('click', () => {
     camera.position.set(0, 1.2, 1.8);
     controls.target.set(0, 0.4, 0);
     controls.update();
     if (previewGroup) previewGroup.rotation.y = 0;
-    showToast('Posisi kamera direset', 'info');
+    showToast('Kamera direset', 'info');
   });
 
-  // Slider Skala
-  scaleSlider.addEventListener('input', (e) => {
+  // Slider Ukuran (Skala)
+  scaleRange.addEventListener('input', (e) => {
     currentScale = parseFloat(e.target.value);
-    scaleValue.textContent = `${currentScale.toFixed(1)}x`;
+    scaleLabel.textContent = `${currentScale.toFixed(1)}x`;
 
     if (modelTemplate) {
       const box = new THREE.Box3().setFromObject(modelTemplate.children[0]);
@@ -727,33 +518,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-
-  // Modal Info
-  const openModal = () => infoModal.classList.add('active');
-  const closeModal = () => infoModal.classList.remove('active');
-
-  btnPhoneGuide.addEventListener('click', openModal);
-  btnCloseModal.addEventListener('click', closeModal);
-  btnModalOk.addEventListener('click', closeModal);
-  infoModal.addEventListener('click', (e) => {
-    if (e.target === infoModal) closeModal();
-  });
 });
 
 // Toast Helper
-function showToast(msg, type = 'info', duration = 3500) {
-  if (toastTimeout) clearTimeout(toastTimeout);
+function showToast(msg, type = 'info', duration = 3000) {
+  if (toastTimer) clearTimeout(toastTimer);
   toast.textContent = msg;
   toast.className = `toast toast-${type} show`;
-  toastTimeout = setTimeout(() => {
+  toastTimer = setTimeout(() => {
     toast.classList.remove('show');
   }, duration);
-}
-
-function formatBytes(bytes, decimals = 1) {
-  if (!bytes) return '';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `(${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]})`;
 }

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>WebAR Studio - Hit-Test Tap to Place & Custom GLB</title>
+  <title>Aplikasi WebAR - Load Custom GLB</title>
   
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Import Map Three.js (Standar WebXR & Google Web 3D) -->
+  <!-- Three.js CDN Standar Web 3D -->
   <script type="importmap">
   {
     "imports": {
@@ -18,44 +18,24 @@
   </script>
 </head>
 <body>
-  <div class="app-container" id="app-container">
+  <div class="app-container">
 
-    <!-- Video Element untuk Kamera HP (WebRTC Universal untuk iPhone & Android) -->
-    <video
-      id="camera-video-feed"
-      class="camera-video hidden"
-      playsinline
-      webkit-playsinline
-      autoplay
-      muted
-    ></video>
+    <!-- Video Element Kamera HP (WebRTC Standar Universal) -->
+    <video id="camera-feed" class="camera-stream" playsinline webkit-playsinline autoplay muted></video>
 
-    <!-- In-App Browser Warning (Jika dibuka via WhatsApp/Instagram/Sosmed) -->
-    <div id="webview-warning" class="security-banner webview-banner hidden">
-      <div class="banner-content">
-        <span class="warning-icon">ℹ️</span>
-        <div class="banner-text">
-          <strong>Perhatian: Buka di Chrome / Safari Asli</strong>
-          <p>Browser bawaan chat membatasi kamera. Ketuk titik tiga (⋮) di pojok atas & pilih "Buka di Browser / Chrome".</p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Header / Navbar -->
-    <header class="app-header" id="app-header">
+    <!-- Canvas Three.js untuk Render 3D & AR -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Header Atas -->
+    <header class="app-header">
       <div class="brand">
         <span class="brand-icon">🌐</span>
         <h1>WebAR <span>Studio</span></h1>
       </div>
-      
-      <div class="header-actions">
-        <!-- Status Indikator Kamera -->
-        <div id="camera-status-pill" class="status-pill status-ok" title="Status Kamera">
-          <span class="status-dot"></span>
-          <span id="camera-status-text">Kamera Siap</span>
-        </div>
 
-        <label for="glb-file-input" class="btn btn-primary" title="Unggah file model 3D .GLB atau .GLTF">
+      <div class="header-actions">
+        <!-- Input Upload GLB Custom -->
+        <label for="glb-file-input" class="btn btn-primary" title="Upload GLB Sendiri">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
@@ -65,139 +45,76 @@
         </label>
         <input type="file" id="glb-file-input" accept=".glb,.gltf" hidden />
 
-        <button id="btn-phone-guide" class="btn btn-secondary" title="Info Kamera">
-          ℹ️ Info
+        <button id="btn-open-camera" class="btn btn-success">
+          📷 Buka Kamera AR
         </button>
       </div>
     </header>
 
-    <!-- 3D Canvas Viewport -->
-    <main class="viewer-wrapper" id="drop-zone">
-      <!-- WebGL Three.js Canvas -->
-      <canvas id="webgl-canvas"></canvas>
-
-      <!-- Drag & Drop Overlay Indicator -->
-      <div class="drop-overlay" id="drop-overlay">
-        <div class="drop-message">
-          <span class="drop-icon">📦</span>
-          <p>Lepaskan file .GLB di sini</p>
-        </div>
-      </div>
-
-      <!-- Badge Info Model Terpasang -->
-      <div class="model-info-badge" id="model-info-badge">
-        <span class="dot"></span>
-        <span id="model-name">Astronaut (Model Bawaan)</span>
-        <span class="model-size" id="model-size"></span>
-      </div>
-
-      <!-- Loading Spinner -->
-      <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <span id="loading-text">Memuat model 3D...</span>
-      </div>
-
-      <!-- Status Toast / Alert -->
-      <div id="toast" class="toast"></div>
-
-      <!-- Tombol Masuk Mode Kamera AR -->
-      <div class="ar-cta-container" id="cta-container">
-        <button id="btn-start-ar" class="ar-button">
-          <span class="ar-icon">📷</span>
-          <span class="ar-btn-text">Buka Kamera AR</span>
-        </button>
-      </div>
-
-      <!-- Floating Controls Panel di Mode 3D Preview -->
-      <div class="floating-controls" id="preview-controls">
-        <div class="control-card">
-          <div class="control-row">
-            <button id="btn-toggle-rotate" class="btn btn-secondary active" title="Putar Otomatis">
-              🔄 Putar
-            </button>
-            <button id="btn-reset-view" class="btn btn-secondary" title="Reset Posisi Kamera">
-              🎯 Reset Kamera
-            </button>
-            <select id="preset-selector" class="select-dropdown" title="Pilih Model Sampel">
-              <option value="https://modelviewer.dev/shared-assets/models/Astronaut.glb">Astronaut</option>
-              <option value="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb">Robot</option>
-              <option value="https://modelviewer.dev/shared-assets/models/Chair.glb">Kursi Modern</option>
-              <option value="https://modelviewer.dev/shared-assets/models/shishkebab.glb">Makanan 3D</option>
-            </select>
-          </div>
-
-          <div class="control-row slider-row">
-            <label for="scale-slider">Ukuran Objek:</label>
-            <input type="range" id="scale-slider" min="0.2" max="3" step="0.1" value="1" />
-            <span id="scale-value" class="scale-label">1.0x</span>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- AR Interface Overlay (Tampil saat Kamera Aktif) -->
-    <div id="ar-overlay" class="ar-overlay hidden">
-      <!-- Petunjuk Status AR (HUD Atas) -->
-      <div class="ar-hud-header">
-        <div class="ar-instruction-card" id="ar-instruction-card">
-          <span id="ar-instruction-icon">🔍</span>
-          <span id="ar-instruction-text">Arahkan kamera & ketuk layar untuk meletakkan model</span>
-        </div>
-      </div>
-
-      <!-- Reticle Ring Guide di Tengah Layar (Mode Kamera Langsung) -->
-      <div class="screen-reticle" id="screen-reticle">
-        <div class="reticle-circle">
-          <div class="reticle-dot"></div>
-        </div>
-      </div>
-
-      <!-- Kontrol Aksi Bawah di Mode AR -->
-      <div class="ar-hud-footer">
-        <button id="btn-reposition-ar" class="btn btn-ar-action" title="Pindahkan model ke titik baru">
-          📍 Reposisi / Pindah Titik
-        </button>
-        <button id="btn-exit-ar" class="btn btn-ar-exit" title="Tutup Kamera AR">
-          ✕ Tutup Kamera
-        </button>
+    <!-- Drag & Drop Overlay -->
+    <div class="drop-overlay" id="drop-overlay">
+      <div class="drop-message">
+        <span class="drop-icon">📦</span>
+        <p>Lepaskan file .GLB di sini</p>
       </div>
     </div>
 
-    <!-- Modal Informasi & Pemecahan Masalah Izin Kamera -->
-    <div class="modal-backdrop" id="info-modal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3>Pengaturan Kamera AR</h3>
-          <button class="btn-close" id="btn-close-modal">&times;</button>
+    <!-- Badge Nama Model Aktif -->
+    <div class="model-badge" id="model-badge">
+      <span class="dot"></span>
+      <span id="model-name">Astronaut (Model Bawaan)</span>
+    </div>
+
+    <!-- Toast Notifikasi -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading-overlay hidden">
+      <div class="spinner"></div>
+      <span id="loading-text">Memuat model 3D...</span>
+    </div>
+
+    <!-- Reticle / Cincin Bidik Penanda Posisi AR (Tampil saat kamera aktif) -->
+    <div id="ar-reticle" class="ar-reticle hidden">
+      <div class="reticle-ring">
+        <div class="reticle-center-dot"></div>
+      </div>
+      <span class="reticle-guide">Ketuk layar di sini untuk menempatkan 3D</span>
+    </div>
+
+    <!-- Petunjuk Atas saat Kamera Aktif -->
+    <div id="ar-instruction-bar" class="ar-instruction-bar hidden">
+      <span id="ar-instruction-icon">📍</span>
+      <span id="ar-instruction-text">Arahkan kamera & ketuk layar untuk menempatkan model</span>
+    </div>
+
+    <!-- Kontrol Bawah AR (Saat Kamera Aktif) -->
+    <div id="ar-controls-bar" class="ar-controls-bar hidden">
+      <button id="btn-reposition" class="btn btn-secondary">
+        📍 Pindah Posisi
+      </button>
+      <button id="btn-close-camera" class="btn btn-danger">
+        ✕ Tutup Kamera
+      </button>
+    </div>
+
+    <!-- Panel Kontrol Mode Preview Biasa (Sebelum Kamera Aktif) -->
+    <div class="floating-panel" id="preview-panel">
+      <div class="panel-card">
+        <div class="panel-row">
+          <button id="btn-rotate" class="btn btn-secondary active">🔄 Putar</button>
+          <button id="btn-reset" class="btn btn-secondary">🎯 Reset</button>
+          <select id="preset-select" class="dropdown">
+            <option value="https://modelviewer.dev/shared-assets/models/Astronaut.glb">Astronaut</option>
+            <option value="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb">Robot</option>
+            <option value="https://modelviewer.dev/shared-assets/models/Chair.glb">Kursi Modern</option>
+            <option value="https://modelviewer.dev/shared-assets/models/shishkebab.glb">Makanan 3D</option>
+          </select>
         </div>
-        <div class="modal-body">
-          <div class="modal-explanation">
-            <p><strong>Status Kamera Perangkat Anda:</strong></p>
-            <p id="device-info-text">Memeriksa izin dan perangkat...</p>
-          </div>
-
-          <div class="solution-options">
-            <div class="solution-card">
-              <div class="solution-badge">Solusi Jika Kamera Tidak Muncul</div>
-              <h4>1. Izinkan Akses Kamera di Browser</h4>
-              <p>Jika sebelumnya Anda tidak sengaja menekan "Blokir" atau "Deny":</p>
-              <ul class="hint-steps">
-                <li>Ketuk ikon <strong>Gembok (🔒)</strong> atau <strong>Setelan</strong> di sebelah kiri alamat URL browser (di bagian atas layar HP Anda).</li>
-                <li>Pilih <strong>Izin / Permissions</strong> -> Ubah <strong>Kamera</strong> menjadi <strong>Izinkan (Allow)</strong>.</li>
-                <li>Muat ulang (Refresh) halaman web.</li>
-              </ul>
-            </div>
-
-            <div class="solution-card">
-              <div class="solution-badge">Tips Penting</div>
-              <h4>2. Gunakan Browser Asli</h4>
-              <p>Pastikan Anda membuka tautan di aplikasi <strong>Google Chrome</strong> (Android) atau <strong>Safari</strong> (iPhone), bukan di dalam browser WhatsApp / Instagram.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-primary" id="btn-modal-ok">Saya Mengerti</button>
+        <div class="panel-row slider-row">
+          <label for="scale-range">Ukuran Model:</label>
+          <input type="range" id="scale-range" min="0.2" max="3" step="0.1" value="1" />
+          <span id="scale-label">1.0x</span>
         </div>
       </div>
     </div>

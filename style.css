@@ -1,109 +1,77 @@
 /* ==========================================================================
-   WebAR Studio - Modern Responsive Stylesheet
-   Universal Camera AR & WebXR Engine
+   WebAR Studio - Bersih, Ringan & Responsif untuk HP dan Komputer
    ========================================================================== */
 
 :root {
-  --bg-primary: #0a0e17;
-  --bg-surface: rgba(18, 25, 38, 0.75);
-  --bg-surface-elevated: rgba(28, 38, 58, 0.85);
-  --border-color: rgba(255, 255, 255, 0.12);
-  --accent-color: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-ar: #10b981;
-  --accent-ar-hover: #059669;
+  --bg-dark: #0a0e17;
+  --bg-card: rgba(18, 25, 38, 0.85);
+  --border-card: rgba(255, 255, 255, 0.12);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --success-hover: #059669;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --radius-lg: 16px;
-  --radius-md: 10px;
-  --radius-sm: 6px;
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --radius: 12px;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-main);
-  min-height: 100vh;
-  min-height: 100dvh;
+html, body {
+  width: 100%;
+  height: 100%;
   overflow: hidden;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
   user-select: none;
 }
 
-body.camera-active {
-  background-color: transparent !important;
-}
-
 .app-container {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  position: relative;
+  overflow: hidden;
 }
 
 /* ==========================================================================
-   Video Element Kamera HP (WebRTC Universal)
+   Video Feed Kamera Belakang HP
    ========================================================================== */
-.camera-video {
-  position: fixed;
+.camera-stream {
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   z-index: 1;
-  background-color: #000;
+  display: none; /* Ditampilkan saat tombol buka kamera ditekan */
 }
 
-.camera-video.hidden {
-  display: none !important;
+.camera-stream.active {
+  display: block !important;
 }
 
 /* ==========================================================================
-   In-App Webview Warning Banner
+   WebGL Canvas Three.js
    ========================================================================== */
-.security-banner {
-  background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 100%);
-  color: #fff;
-  padding: 8px 16px;
-  z-index: 99;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.security-banner.hidden {
-  display: none;
-}
-
-.banner-content {
-  max-width: 900px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.warning-icon {
-  font-size: 1.5rem;
-}
-
-.banner-text strong {
-  font-size: 0.88rem;
-  display: block;
-}
-
-.banner-text p {
-  font-size: 0.76rem;
-  opacity: 0.95;
+#webgl-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  outline: none;
+  background: transparent;
 }
 
 /* ==========================================================================
@@ -119,9 +87,8 @@ body.camera-active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(10, 14, 23, 0.9) 0%, rgba(10, 14, 23, 0) 100%);
+  background: linear-gradient(180deg, rgba(10, 14, 23, 0.85) 0%, rgba(10, 14, 23, 0) 100%);
   z-index: 20;
-  pointer-events: auto;
 }
 
 .brand {
@@ -135,13 +102,12 @@ body.camera-active {
 }
 
 .brand h1 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
 .brand h1 span {
-  color: var(--accent-color);
+  color: var(--primary);
   font-weight: 400;
 }
 
@@ -151,42 +117,8 @@ body.camera-active {
   gap: 8px;
 }
 
-/* Status Pill */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--border-color);
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.status-ok {
-  background: rgba(16, 185, 129, 0.15);
-  color: #6ee7b7;
-  border-color: rgba(16, 185, 129, 0.3);
-}
-.status-ok .status-dot { background: #10b981; }
-
-.status-warn {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fcd34d;
-  border-color: rgba(245, 158, 11, 0.3);
-}
-.status-warn .status-dot { background: #f59e0b; }
-
 /* ==========================================================================
-   Buttons & Inputs
+   Tombol & Kontrol
    ========================================================================== */
 .btn {
   display: inline-flex;
@@ -194,179 +126,231 @@ body.camera-active {
   justify-content: center;
   gap: 6px;
   padding: 8px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.btn:active {
+  transform: scale(0.96);
 }
 
 .btn-primary {
-  background-color: var(--accent-color);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  background-color: var(--primary);
+  color: #fff;
 }
+.btn-primary:hover { background-color: var(--primary-hover); }
 
-.btn-primary:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-1px);
+.btn-success {
+  background-color: var(--success);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
 }
+.btn-success:hover { background-color: var(--success-hover); }
 
 .btn-secondary {
-  background-color: var(--bg-surface-elevated);
+  background-color: rgba(30, 41, 59, 0.85);
   color: var(--text-main);
-  border-color: var(--border-color);
+  border-color: var(--border-card);
 }
-
-.btn-secondary:hover {
-  background-color: rgba(45, 60, 90, 0.95);
-}
-
+.btn-secondary:hover { background-color: rgba(51, 65, 85, 0.95); }
 .btn-secondary.active {
-  background-color: rgba(59, 130, 246, 0.25);
-  border-color: var(--accent-color);
+  border-color: var(--primary);
   color: #60a5fa;
+  background-color: rgba(59, 130, 246, 0.2);
 }
 
-.select-dropdown {
-  background-color: var(--bg-surface-elevated);
+.btn-danger {
+  background-color: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover { background-color: var(--danger-hover); }
+
+.dropdown {
+  background-color: rgba(30, 41, 59, 0.85);
   color: var(--text-main);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 7px 10px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 8px 10px;
   font-size: 0.82rem;
   outline: none;
   cursor: pointer;
 }
 
-.select-dropdown option {
+.dropdown option {
   background-color: #1e293b;
-  color: var(--text-main);
+  color: #fff;
 }
 
 /* ==========================================================================
-   Canvas & Viewport
+   Badge Nama Model Aktif
    ========================================================================== */
-.viewer-wrapper {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0a0e17 80%);
-  overflow: hidden;
-}
-
-.viewer-wrapper.camera-mode {
-  background: transparent !important;
-}
-
-#webgl-canvas {
+.model-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  outline: none;
-  z-index: 2;
-  background: transparent;
-}
-
-/* ==========================================================================
-   AR CTA Launch Button
-   ========================================================================== */
-.ar-cta-container {
-  position: absolute;
-  bottom: 125px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 15;
-}
-
-.ar-cta-container.hidden {
-  display: none !important;
-}
-
-.ar-button {
-  pointer-events: auto;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 30px;
-  padding: 13px 28px;
-  font-size: 1rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.45);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  animation: pulse-glow 2.5s infinite;
-}
-
-.ar-button:hover {
-  transform: scale(1.04);
-  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.65);
-}
-
-.ar-button:active {
-  transform: scale(0.97);
-}
-
-.ar-icon {
-  font-size: 1.25rem;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 8px 32px rgba(16, 185, 129, 0.75); }
-}
-
-/* ==========================================================================
-   Model Info Badge
-   ========================================================================== */
-.model-info-badge {
-  position: absolute;
-  top: 72px;
+  top: 70px;
   left: 16px;
-  background: var(--bg-surface);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.8rem;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-main);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 10;
-  max-width: calc(100vw - 32px);
+  backdrop-filter: blur(10px);
 }
 
-.model-info-badge.hidden {
-  display: none !important;
-}
-
-.model-info-badge .dot {
+.model-badge .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--accent-ar);
+  background-color: var(--success);
 }
 
-.model-info-badge .model-size {
+/* ==========================================================================
+   Cincin Bidik (Reticle) Saat Kamera Aktif
+   ========================================================================== */
+.ar-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.reticle-ring {
+  width: 84px;
+  height: 84px;
+  border: 3px dashed var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse-spin 3s infinite linear;
+}
+
+.reticle-center-dot {
+  width: 12px;
+  height: 12px;
+  background-color: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--success);
+}
+
+.reticle-guide {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+@keyframes pulse-spin {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.08) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
+/* ==========================================================================
+   Petunjuk Atas AR
+   ========================================================================== */
+.ar-instruction-bar {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid var(--border-card);
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 25;
+  text-align: center;
+  max-width: 90%;
+  backdrop-filter: blur(10px);
+}
+
+/* ==========================================================================
+   Kontrol Bawah AR
+   ========================================================================== */
+.ar-controls-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 25;
+}
+
+/* ==========================================================================
+   Panel Kontrol Preview Bawah
+   ========================================================================== */
+.floating-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 480px;
+  z-index: 10;
+}
+
+.panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  backdrop-filter: blur(16px);
+}
+
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.slider-row {
+  font-size: 0.8rem;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+#scale-label {
+  min-width: 36px;
+  text-align: right;
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -376,7 +360,6 @@ body.camera-active {
   position: absolute;
   inset: 0;
   background: rgba(10, 14, 23, 0.88);
-  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -384,9 +367,9 @@ body.camera-active {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
-  border: 3px dashed var(--accent-color);
-  margin: 15px;
-  border-radius: var(--radius-lg);
+  border: 3px dashed var(--primary);
+  margin: 16px;
+  border-radius: var(--radius);
 }
 
 .drop-overlay.active {
@@ -401,74 +384,7 @@ body.camera-active {
 .drop-icon {
   font-size: 3rem;
   display: block;
-  margin-bottom: 12px;
-  animation: bounce 1.2s infinite;
-}
-
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-/* ==========================================================================
-   Floating Controls Panel (Preview Mode)
-   ========================================================================== */
-.floating-controls {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: 520px;
-  z-index: 10;
-}
-
-.floating-controls.hidden {
-  display: none !important;
-}
-
-.control-card {
-  background: var(--bg-surface);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 10px 14px;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.slider-row {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 6px;
-}
-
-.slider-row input[type="range"] {
-  flex: 1;
-  accent-color: var(--accent-color);
-  cursor: pointer;
-  height: 4px;
-}
-
-.scale-label {
-  min-width: 38px;
-  text-align: right;
-  color: var(--text-main);
-  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 /* ==========================================================================
@@ -478,7 +394,6 @@ body.camera-active {
   position: absolute;
   inset: 0;
   background: rgba(10, 14, 23, 0.75);
-  backdrop-filter: blur(6px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -488,15 +403,11 @@ body.camera-active {
   font-size: 0.9rem;
 }
 
-.loading-overlay.hidden {
-  display: none;
-}
-
 .spinner {
-  width: 38px;
-  height: 38px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--accent-ar);
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--success);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -506,138 +417,16 @@ body.camera-active {
 }
 
 /* ==========================================================================
-   AR Overlay (Tampil saat Kamera Aktif)
-   ========================================================================== */
-.ar-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 16px;
-}
-
-.ar-overlay.hidden {
-  display: none !important;
-}
-
-.ar-hud-header {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-top: 50px;
-}
-
-.ar-instruction-card {
-  background: rgba(10, 14, 23, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 25px;
-  padding: 10px 20px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  max-width: 90%;
-  text-align: center;
-}
-
-/* Cincin Target (Reticle) di Tengah Layar */
-.screen-reticle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.screen-reticle.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.reticle-circle {
-  width: 80px;
-  height: 80px;
-  border: 2px dashed rgba(16, 185, 129, 0.9);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: reticle-pulse 2s infinite linear;
-}
-
-.reticle-dot {
-  width: 10px;
-  height: 10px;
-  background-color: #10b981;
-  border-radius: 50%;
-  box-shadow: 0 0 10px #10b981;
-}
-
-@keyframes reticle-pulse {
-  0% { transform: scale(1) rotate(0deg); border-color: rgba(16, 185, 129, 0.7); }
-  50% { transform: scale(1.1) rotate(180deg); border-color: rgba(52, 211, 153, 1); }
-  100% { transform: scale(1) rotate(360deg); border-color: rgba(16, 185, 129, 0.7); }
-}
-
-/* Footer Kontrol AR */
-.ar-hud-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  pointer-events: auto;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.btn-ar-action {
-  background: rgba(28, 38, 58, 0.9);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  padding: 10px 18px;
-  border-radius: 20px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  backdrop-filter: blur(8px);
-}
-
-.btn-ar-action.hidden {
-  display: none !important;
-}
-
-.btn-ar-exit {
-  background: rgba(239, 68, 68, 0.9);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 10px 18px;
-  border-radius: 20px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  margin-left: auto;
-  backdrop-filter: blur(8px);
-}
-
-/* ==========================================================================
-   Toast Notification
+   Toast Notifikasi
    ========================================================================== */
 .toast {
   position: absolute;
-  top: 75px;
+  top: 70px;
   right: 16px;
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
-  box-shadow: var(--shadow-lg);
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -651,177 +440,18 @@ body.camera-active {
   transform: translateY(0);
 }
 
-.toast.toast-info {
-  background-color: #1e3a8a;
-  color: #bfdbfe;
-  border: 1px solid #3b82f6;
+.toast-info { background: #1e3a8a; color: #bfdbfe; border: 1px solid #3b82f6; }
+.toast-success { background: #064e3b; color: #a7f3d0; border: 1px solid #10b981; }
+.toast-error { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; }
+
+/* Utilitas */
+.hidden {
+  display: none !important;
 }
 
-.toast.toast-error {
-  background-color: #7f1d1d;
-  color: #fecaca;
-  border: 1px solid #ef4444;
-}
-
-.toast.toast-success {
-  background-color: #064e3b;
-  color: #a7f3d0;
-  border: 1px solid #10b981;
-}
-
-/* ==========================================================================
-   Modal Dialog
-   ========================================================================== */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 100;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.modal-backdrop.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-card {
-  background: #141c2b;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 480px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: 90vh;
-}
-
-.modal-header {
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h3 {
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.btn-close:hover {
-  color: #ffffff;
-}
-
-.modal-body {
-  padding: 18px 20px;
-  font-size: 0.88rem;
-  color: #cbd5e1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.modal-explanation {
-  background: rgba(59, 130, 246, 0.12);
-  border-left: 4px solid #3b82f6;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  color: #bfdbfe;
-  font-size: 0.83rem;
-  line-height: 1.45;
-}
-
-.solution-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.solution-card {
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 14px;
-}
-
-.solution-badge {
-  display: inline-block;
-  background: #2563eb;
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-}
-
-.solution-card h4 {
-  font-size: 0.95rem;
-  color: #ffffff;
-  margin-bottom: 6px;
-}
-
-.hint-steps {
-  padding-left: 18px;
-  font-size: 0.82rem;
-  color: #cbd5e1;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-
-.modal-footer {
-  padding: 12px 20px;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid var(--border-color);
-  background: rgba(10, 14, 23, 0.5);
-}
-
-/* ==========================================================================
-   Responsive Adaptations
-   ========================================================================== */
 @media (max-width: 600px) {
-  .app-header {
-    padding: 0 12px;
-  }
-  
-  .brand h1 {
-    font-size: 0.95rem;
-  }
-  
-  .ar-cta-container {
-    bottom: 140px;
-  }
-
-  .ar-button {
-    padding: 12px 24px;
-    font-size: 0.92rem;
-  }
-  
-  .floating-controls {
-    bottom: 12px;
-    width: calc(100% - 24px);
-  }
+  .app-header { padding: 0 12px; }
+  .brand h1 { font-size: 0.95rem; }
+  .floating-panel { width: calc(100% - 24px); bottom: 12px; }
+  .btn { padding: 7px 12px; font-size: 0.82rem; }
 }
