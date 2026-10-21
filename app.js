@@ -1,5 +1,5 @@
 /**
- * WebAR Studio - Engine Kamera AR & 3D Viewer
+ * WebAR Studio - Engine Kamera AR, Gyroscope Tracking & Animasi 3D
  * Murni HTML5 + CSS3 + Vanilla JavaScript + Three.js
  */
 
@@ -15,10 +15,19 @@ let previewGroup, arGroup;
 let modelTemplate = null;
 let currentScale = 1.0;
 
-// State Kamera AR
+// State Kamera & Gyroscope AR
 let isCameraActive = false;
 let isModelPlaced = false;
 let mediaStream = null;
+let deviceOrientation = { alpha: null, beta: null, gamma: null };
+let screenOrientation = 0;
+let hasGyroData = false;
+
+// State Animasi Karakter
+let mixer = null;
+let animationActions = [];
+let activeAction = null;
+const clock = new THREE.Clock();
 
 // DOM Elements
 const canvas = document.getElementById('webgl-canvas');
@@ -28,6 +37,7 @@ const dropZone = document.getElementById('drop-zone');
 const dropOverlay = document.getElementById('drop-overlay');
 const modelName = document.getElementById('model-name');
 const modelBadge = document.getElementById('model-badge');
+const animBadge = document.getElementById('anim-badge');
 const loading = document.getElementById('loading');
 const loadingText = document.getElementById('loading-text');
 const toast = document.getElementById('toast');
@@ -39,6 +49,8 @@ const btnReposition = document.getElementById('btn-reposition');
 const btnRotate = document.getElementById('btn-rotate');
 const btnReset = document.getElementById('btn-reset');
 const presetSelect = document.getElementById('preset-select');
+const previewAnimSelect = document.getElementById('preview-anim-select');
+const arAnimSelect = document.getElementById('ar-anim-select');
 const scaleRange = document.getElementById('scale-range');
 const scaleLabel = document.getElementById('scale-label');
 
@@ -57,27 +69,24 @@ let toastTimer = null;
 // 1. Inisialisasi Three.js 3D Engine
 // =============================================================================
 function initEngine() {
-  // 1. Scene
   scene = new THREE.Scene();
 
-  // 2. Camera
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 30);
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 35);
   camera.position.set(0, 1.2, 1.8);
 
-  // 3. Renderer Transparan
   renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
-    alpha: true, // Memungkinkan video kamera di belakang terlihat
+    alpha: true,
     powerPreference: 'high-performance'
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x000000, 0); // Background canvas bening
+  renderer.setClearColor(0x000000, 0);
 
-  // 4. Orbit Controls (Untuk mode preview 3D)
+  // Orbit Controls (Preview)
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
@@ -85,7 +94,7 @@ function initEngine() {
   controls.maxPolarAngle = Math.PI / 2 + 0.1;
   controls.update();
 
-  // 5. Pencahayaan
+  // Pencahayaan
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
   scene.add(ambientLight);
 
@@ -96,7 +105,7 @@ function initEngine() {
   dirLight.shadow.mapSize.height = 1024;
   scene.add(dirLight);
 
-  // 6. Group Preview 3D (Grid & Bayangan)
+  // Group Preview 3D
   previewGroup = new THREE.Group();
   scene.add(previewGroup);
 
@@ -110,29 +119,77 @@ function initEngine() {
   shadowMesh.receiveShadow = true;
   previewGroup.add(shadowMesh);
 
-  // 7. Group AR (Tempat objek saat kamera aktif)
+  // Group AR (Tempat objek di kamera)
   arGroup = new THREE.Group();
   scene.add(arGroup);
 
-  // Touch & Drag Interaction
+  // Pasang Listener Gyroscope & Sentuhan
+  setupGyroscopeListener();
   setupTouchControls();
 
-  // Resize handler
   window.addEventListener('resize', onWindowResize);
 
-  // Render Loop
+  // Mulai Loop Render
   renderer.setAnimationLoop(renderLoop);
 
-  // Muat model awal
-  loadGlbFromUrl(presetSelect.value, 'Astronaut');
+  // Muat model awal (Robot Bergerak dengan Animasi)
+  loadGlbFromUrl(presetSelect.value, 'Robot');
 }
 
 // =============================================================================
-// 2. Buka & Tutup Kamera HP (WebRTC Universal)
+// 2. Gyroscope Tracking (Sensor Gerak HP)
+// =============================================================================
+function setupGyroscopeListener() {
+  function handleOrientation(event) {
+    if (event.alpha !== null) {
+      deviceOrientation.alpha = event.alpha;
+      deviceOrientation.beta = event.beta;
+      deviceOrientation.gamma = event.gamma;
+      hasGyroData = true;
+    }
+  }
+
+  window.addEventListener('deviceorientation', handleOrientation, false);
+  window.addEventListener('orientationchange', () => {
+    screenOrientation = window.orientation || 0;
+  }, false);
+}
+
+// Terapkan data sensor gyroscope ke orientasi kamera 3D
+const _zee = new THREE.Vector3(0, 0, 1);
+const _euler = new THREE.Euler();
+const _q0 = new THREE.Quaternion();
+const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // - PI/2 sumbu X
+
+function updateCameraFromGyro() {
+  if (!isCameraActive || !hasGyroData || deviceOrientation.alpha === null) return;
+
+  const alpha = THREE.MathUtils.degToRad(deviceOrientation.alpha); // Rotasi kompas (Z)
+  const beta = THREE.MathUtils.degToRad(deviceOrientation.beta);   // Kemiringan depan-belakang (X)
+  const gamma = THREE.MathUtils.degToRad(deviceOrientation.gamma); // Kemiringan kiri-kanan (Y)
+  const orient = THREE.MathUtils.degToRad(screenOrientation);
+
+  _euler.set(beta, alpha, -gamma, 'YXZ');
+  camera.quaternion.setFromEuler(_euler);
+  camera.quaternion.multiply(_q1); // Arahkan kamera Three.js ke belakang HP (sejajar kamera fisik)
+  camera.quaternion.multiply(_q0.setFromAxisAngle(_zee, -orient));
+}
+
+// =============================================================================
+// 3. Buka & Tutup Kamera HP
 // =============================================================================
 async function startCamera() {
+  // Minta izin sensor giroskop pada perangkat iOS (iPhone/iPad)
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      await DeviceOrientationEvent.requestPermission();
+    } catch (e) {
+      console.warn('Izin giroskop:', e);
+    }
+  }
+
   try {
-    // 1. Panggil izin kamera browser secara langsung (seperti di laptop)
+    // Panggil kamera belakang HP
     let stream = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -140,7 +197,6 @@ async function startCamera() {
         audio: false
       });
     } catch (e1) {
-      console.warn('Gagal buka kamera belakang ideal, coba kamera standar...', e1);
       stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false
@@ -150,41 +206,38 @@ async function startCamera() {
     mediaStream = stream;
     cameraFeed.srcObject = stream;
     cameraFeed.classList.add('active');
-
-    // Pastikan video mulai berjalan
     await cameraFeed.play();
 
     isCameraActive = true;
     isModelPlaced = false;
 
-    // 2. Alihkan Tampilan UI ke Mode Kamera AR
-    previewGroup.visible = false; // Sembunyikan grid lantai abu-abu
+    // Alihkan UI ke Mode Kamera AR
+    previewGroup.visible = false;
     previewPanel.classList.add('hidden');
     btnOpenCamera.classList.add('hidden');
     modelBadge.classList.add('hidden');
 
-    arReticle.classList.remove('hidden'); // Tampilkan cincin bidik
+    arReticle.classList.remove('hidden');
     arInstructionBar.classList.remove('hidden');
     arControlsBar.classList.remove('hidden');
     btnReposition.classList.add('hidden');
 
     arInstructionIcon.textContent = '📍';
-    arInstructionText.textContent = 'Arahkan kamera & ketuk layar untuk meletakkan model 3D';
+    arInstructionText.textContent = 'Arahkan kamera & ketuk layar untuk menaruh karakter 3D';
 
-    // Posisikan kamera 3D tetap menghadap lurus
+    // Nonaktifkan OrbitControls saat kamera aktif
     controls.enabled = false;
-    camera.position.set(0, 0, 1.2);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 0, 0); // Titik pusat kamera HP
 
-    // Bersihkan objek AR sebelumnya jika ada
+    // Bersihkan objek AR lama
     while (arGroup.children.length > 0) {
       arGroup.remove(arGroup.children[0]);
     }
 
-    showToast('Kamera aktif! Arahkan & ketuk layar untuk menaruh objek.', 'success');
+    showToast('Kamera & Gyroscope Aktif! Arahkan & ketuk layar.', 'success', 3500);
   } catch (err) {
     console.error('Kamera gagal dibuka:', err);
-    showToast('Izin kamera ditolak pada browser.', 'error', 4000);
+    showToast('Izin kamera ditolak pada browser HP Anda.', 'error', 4000);
   }
 }
 
@@ -217,6 +270,7 @@ function stopCamera() {
   // Aktifkan kembali kontrol orbit
   controls.enabled = true;
   camera.position.set(0, 1.2, 1.8);
+  camera.rotation.set(0, 0, 0);
   controls.target.set(0, 0.4, 0);
   controls.update();
 
@@ -224,7 +278,7 @@ function stopCamera() {
 }
 
 // =============================================================================
-// 3. Menempatkan Model (Tap to Place) & Geser Putar
+// 4. Menempatkan Model (Tap to Place) & Gerakan Interaktif
 // =============================================================================
 function placeModel() {
   if (!modelTemplate || !isCameraActive) return;
@@ -235,20 +289,38 @@ function placeModel() {
   }
 
   const model = arGroup.children[0];
-  // Posisikan tepat di tengah kamera agak ke bawah di lantai
-  model.position.set(0, -0.28, -1.05);
-  model.rotation.set(0, 0, 0);
-  model.visible = true;
 
+  if (hasGyroData && deviceOrientation.alpha !== null) {
+    // Tempatkan objek di koordinat dunia 3D tepat di depan arah pandang kamera saat ini
+    const viewDir = new THREE.Vector3();
+    camera.getWorldDirection(viewDir);
+
+    // Letakkan objek 1.3 meter di depan kamera, sedikit ke bawah (posisi lantai/meja)
+    model.position.copy(camera.position).add(viewDir.multiplyScalar(1.3));
+    model.position.y -= 0.35;
+
+    // Hadapkan model ke arah kamera
+    model.lookAt(camera.position.x, model.position.y, camera.position.z);
+  } else {
+    // Fallback jika HP tidak memiliki sensor giroskop
+    model.position.set(0, -0.28, -1.1);
+    model.rotation.set(0, 0, 0);
+  }
+
+  model.visible = true;
   isModelPlaced = true;
 
-  // Sembunyikan cincin target, tampilkan tombol reposisi
+  // Hubungkan mixer animasi ke model AR jika ada animasi
+  if (animationActions.length > 0) {
+    startAnimationOnModel(model);
+  }
+
   arReticle.classList.add('hidden');
   btnReposition.classList.remove('hidden');
 
   arInstructionIcon.textContent = '✅';
-  arInstructionText.textContent = 'Model berhasil diletakkan! Sentuh & geser untuk memutar.';
-  showToast('Model 3D berhasil diletakkan!', 'success');
+  arInstructionText.textContent = 'Karakter diletakkan! Gerakkan HP Anda untuk melihat dari berbagai sudut.';
+  showToast('Karakter 3D berhasil diletakkan & bergerak!', 'success', 3500);
 }
 
 function repositionModel() {
@@ -260,27 +332,26 @@ function repositionModel() {
     arGroup.children[0].visible = false;
   }
 
-  // Munculkan kembali cincin target
   arReticle.classList.remove('hidden');
   btnReposition.classList.add('hidden');
 
   arInstructionIcon.textContent = '📍';
-  arInstructionText.textContent = 'Arahkan kamera & ketuk layar di lokasi baru.';
-  showToast('Arahkan kamera & ketuk layar untuk meletakkan ulang', 'info');
+  arInstructionText.textContent = 'Arahkan kamera & ketuk layar di posisi baru.';
+  showToast('Arahkan kamera & ketuk layar untuk menaruh ulang', 'info');
 }
 
 function setupTouchControls() {
   let touchStartX = 0;
   let isDragging = false;
 
-  // Klik / Tap layar untuk meletakkan objek
+  // Tap layar untuk meletakkan
   canvas.addEventListener('click', () => {
     if (isCameraActive && !isModelPlaced) {
       placeModel();
     }
   });
 
-  // Gestur geser horizontal untuk memutar objek saat sudah diletakkan
+  // Geser layar untuk memutar objek secara manual
   canvas.addEventListener('touchstart', (e) => {
     if (isCameraActive && isModelPlaced && e.touches.length === 1) {
       isDragging = true;
@@ -302,15 +373,92 @@ function setupTouchControls() {
 }
 
 // =============================================================================
-// 4. Render Loop Animasi
+// 5. Animasi Karakter 3D (AnimationMixer)
+// =============================================================================
+function setupAnimations(gltf, targetObj) {
+  if (mixer) {
+    mixer.stopAllAction();
+    mixer = null;
+  }
+  animationActions = [];
+  previewAnimSelect.innerHTML = '';
+  arAnimSelect.innerHTML = '';
+
+  if (gltf.animations && gltf.animations.length > 0) {
+    mixer = new THREE.AnimationMixer(targetObj);
+
+    gltf.animations.forEach((clip, index) => {
+      const action = mixer.clipAction(clip);
+      animationActions.push({ name: clip.name || `Gerakan ${index + 1}`, action });
+
+      // Isi dropdown pilihan animasi
+      const opt1 = document.createElement('option');
+      opt1.value = index;
+      opt1.textContent = `Animasi: ${clip.name || index + 1}`;
+      previewAnimSelect.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = index;
+      opt2.textContent = `Animasi: ${clip.name || index + 1}`;
+      arAnimSelect.appendChild(opt2);
+    });
+
+    // Jalankan animasi pertama (misal: Walk / Idle / Dance)
+    playAnimationByIndex(0);
+
+    animBadge.classList.remove('hidden');
+    previewAnimSelect.classList.remove('hidden');
+    arAnimSelect.classList.remove('hidden');
+  } else {
+    animBadge.classList.add('hidden');
+    previewAnimSelect.classList.add('hidden');
+    arAnimSelect.classList.add('hidden');
+  }
+}
+
+function playAnimationByIndex(index) {
+  if (!animationActions[index]) return;
+
+  if (activeAction) {
+    activeAction.fadeOut(0.3);
+  }
+
+  const nextAction = animationActions[index].action;
+  nextAction.reset().fadeIn(0.3).play();
+  activeAction = nextAction;
+
+  previewAnimSelect.value = index;
+  arAnimSelect.value = index;
+}
+
+function startAnimationOnModel(modelObj) {
+  if (animationActions.length > 0 && modelTemplate && modelTemplate.userData.gltf) {
+    setupAnimations(modelTemplate.userData.gltf, modelObj);
+  }
+}
+
+// =============================================================================
+// 6. Render Loop Animasi & Gyroscope
 // =============================================================================
 function renderLoop() {
-  if (!isCameraActive) {
+  const delta = clock.getDelta();
+
+  // 1. Perbarui Animasi Gerak Karakter 3D
+  if (mixer) {
+    mixer.update(delta);
+  }
+
+  // 2. Kamera AR: Perbarui orientasi dari Gyroscope sensor HP
+  if (isCameraActive) {
+    updateCameraFromGyro();
+  } else {
+    // Mode Preview 3D Desktop/Biasa
     if (autoRotate && previewGroup) {
       previewGroup.rotation.y += 0.005;
     }
     controls.update();
   }
+
   renderer.render(scene, camera);
 }
 
@@ -321,7 +469,7 @@ function onWindowResize() {
 }
 
 // =============================================================================
-// 5. Muat Model GLB (Custom Upload & Sampel)
+// 7. Muat Model GLB (Custom Upload & Sampel)
 // =============================================================================
 function showLoading(msg) {
   loadingText.textContent = msg;
@@ -338,9 +486,9 @@ function loadGlbFromUrl(url, label) {
   loader.load(
     url,
     (gltf) => {
-      applyModel(gltf.scene, `${label} (Model Bawaan)`);
+      applyModel(gltf, `${label} (Model Bawaan)`);
       hideLoading();
-      showToast(`Model "${label}" siap!`, 'success');
+      showToast(`Model "${label}" siap & animasi aktif!`, 'success');
     },
     undefined,
     (err) => {
@@ -370,7 +518,7 @@ function loadGlbFromFile(file) {
       buffer,
       '',
       (gltf) => {
-        applyModel(gltf.scene, file.name);
+        applyModel(gltf, file.name);
         hideLoading();
         showToast(`Model kustom "${file.name}" siap!`, 'success');
       },
@@ -384,7 +532,9 @@ function loadGlbFromFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-function applyModel(sceneObj, displayName) {
+function applyModel(gltf, displayName) {
+  const sceneObj = gltf.scene;
+
   // Bersihkan model lama
   while (previewGroup.children.length > 2) {
     previewGroup.remove(previewGroup.children[previewGroup.children.length - 1]);
@@ -411,23 +561,27 @@ function applyModel(sceneObj, displayName) {
 
   const center = box.getCenter(new THREE.Vector3());
   sceneObj.position.x = -center.x;
-  sceneObj.position.y = -box.min.y; // dasar model pas di lantai
+  sceneObj.position.y = -box.min.y;
   sceneObj.position.z = -center.z;
 
   const wrapper = new THREE.Group();
   wrapper.add(sceneObj);
   wrapper.scale.setScalar(baseScale * currentScale);
+  wrapper.userData.gltf = gltf;
 
   modelTemplate = wrapper;
 
-  // Masukkan clone ke preview biasa
+  // Masukkan ke preview biasa
   previewGroup.add(modelTemplate.clone());
+
+  // Jalankan animasi pada model preview
+  setupAnimations(gltf, previewGroup.children[previewGroup.children.length - 1]);
 
   modelName.textContent = displayName;
 }
 
 // =============================================================================
-// 6. Event Listeners UI
+// 8. Event Listeners UI
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
   initEngine();
@@ -440,6 +594,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Reposisi / Pindah Posisi
   btnReposition.addEventListener('click', repositionModel);
+
+  // Dropdown Pilih Animasi Karakter (Saat Kamera & Preview)
+  previewAnimSelect.addEventListener('change', (e) => {
+    playAnimationByIndex(parseInt(e.target.value));
+  });
+
+  arAnimSelect.addEventListener('change', (e) => {
+    playAnimationByIndex(parseInt(e.target.value));
+  });
 
   // Upload Custom GLB
   fileInput.addEventListener('change', (e) => {
@@ -488,6 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reset Kamera View
   btnReset.addEventListener('click', () => {
     camera.position.set(0, 1.2, 1.8);
+    camera.rotation.set(0, 0, 0);
     controls.target.set(0, 0.4, 0);
     controls.update();
     if (previewGroup) previewGroup.rotation.y = 0;

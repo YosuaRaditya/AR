@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Aplikasi WebAR - Load Custom GLB</title>
+  <title>Aplikasi WebAR - Gyroscope Tracking & Custom GLB</title>
   
   <link rel="stylesheet" href="style.css" />
 
@@ -20,7 +20,7 @@
 <body>
   <div class="app-container">
 
-    <!-- Video Element Kamera HP (WebRTC Standar Universal) -->
+    <!-- Video Feed Kamera Belakang HP (WebRTC Universal) -->
     <video id="camera-feed" class="camera-stream" playsinline webkit-playsinline autoplay muted></video>
 
     <!-- Canvas Three.js untuk Render 3D & AR -->
@@ -59,10 +59,11 @@
       </div>
     </div>
 
-    <!-- Badge Nama Model Aktif -->
+    <!-- Badge Nama Model & Status Gerak Animasi -->
     <div class="model-badge" id="model-badge">
       <span class="dot"></span>
       <span id="model-name">Astronaut (Model Bawaan)</span>
+      <span id="anim-badge" class="anim-badge hidden">Animasi Aktif</span>
     </div>
 
     <!-- Toast Notifikasi -->
@@ -74,25 +75,30 @@
       <span id="loading-text">Memuat model 3D...</span>
     </div>
 
-    <!-- Reticle / Cincin Bidik Penanda Posisi AR (Tampil saat kamera aktif) -->
+    <!-- Reticle / Cincin Bidik Penanda Posisi AR -->
     <div id="ar-reticle" class="ar-reticle hidden">
       <div class="reticle-ring">
         <div class="reticle-center-dot"></div>
       </div>
-      <span class="reticle-guide">Ketuk layar di sini untuk menempatkan 3D</span>
+      <span class="reticle-guide">Arahkan & ketuk layar untuk menaruh 3D</span>
     </div>
 
     <!-- Petunjuk Atas saat Kamera Aktif -->
     <div id="ar-instruction-bar" class="ar-instruction-bar hidden">
       <span id="ar-instruction-icon">📍</span>
-      <span id="ar-instruction-text">Arahkan kamera & ketuk layar untuk menempatkan model</span>
+      <span id="ar-instruction-text">Arahkan kamera & ketuk layar untuk meletakkan model 3D</span>
     </div>
 
     <!-- Kontrol Bawah AR (Saat Kamera Aktif) -->
     <div id="ar-controls-bar" class="ar-controls-bar hidden">
-      <button id="btn-reposition" class="btn btn-secondary">
-        📍 Pindah Posisi
-      </button>
+      <div class="ar-actions-left">
+        <button id="btn-reposition" class="btn btn-secondary">
+          📍 Pindah Posisi
+        </button>
+        <!-- Dropdown Pilih Gerakan/Animasi jika GLB memiliki animasi -->
+        <select id="ar-anim-select" class="dropdown hidden" title="Pilih Animasi Karakter"></select>
+      </div>
+
       <button id="btn-close-camera" class="btn btn-danger">
         ✕ Tutup Kamera
       </button>
@@ -105,11 +111,13 @@
           <button id="btn-rotate" class="btn btn-secondary active">🔄 Putar</button>
           <button id="btn-reset" class="btn btn-secondary">🎯 Reset</button>
           <select id="preset-select" class="dropdown">
+            <option value="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb">Robot Bergerak (Animasi)</option>
             <option value="https://modelviewer.dev/shared-assets/models/Astronaut.glb">Astronaut</option>
-            <option value="https://modelviewer.dev/shared-assets/models/RobotExpressive.glb">Robot</option>
             <option value="https://modelviewer.dev/shared-assets/models/Chair.glb">Kursi Modern</option>
             <option value="https://modelviewer.dev/shared-assets/models/shishkebab.glb">Makanan 3D</option>
           </select>
+          <!-- Dropdown Animasi di Preview -->
+          <select id="preview-anim-select" class="dropdown hidden" title="Pilih Animasi"></select>
         </div>
         <div class="panel-row slider-row">
           <label for="scale-range">Ukuran Model:</label>
