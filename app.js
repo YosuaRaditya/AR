@@ -131,10 +131,8 @@ function initEngine() {
 // 2. Buka & Tutup Kamera HP (WebRTC Universal)
 // =============================================================================
 async function startCamera() {
-  showLoading('Membuka kamera HP...');
-
   try {
-    // 1. Minta akses kamera belakang HP
+    // 1. Panggil izin kamera browser secara langsung (seperti di laptop)
     let stream = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -158,8 +156,6 @@ async function startCamera() {
 
     isCameraActive = true;
     isModelPlaced = false;
-
-    hideLoading();
 
     // 2. Alihkan Tampilan UI ke Mode Kamera AR
     previewGroup.visible = false; // Sembunyikan grid lantai abu-abu
@@ -187,9 +183,8 @@ async function startCamera() {
 
     showToast('Kamera aktif! Arahkan & ketuk layar untuk menaruh objek.', 'success');
   } catch (err) {
-    hideLoading();
     console.error('Kamera gagal dibuka:', err);
-    showToast('Gagal mengakses kamera: Pastikan Anda memilih "Izinkan" (Allow) pada browser.', 'error', 5000);
+    showToast('Izin kamera ditolak pada browser.', 'error', 4000);
   }
 }
 
